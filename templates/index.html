@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<!-- Hero Role Selection Section -->
+<section class="py-5" style="background: radial-gradient(circle at 50% 0%, #ecfdf5 0%, #f8fafc 70%);">
+    <div class="container text-center">
+        
+        <!-- Brand Logo Showcase -->
+        <div class="mb-4">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AnnaPath Logo" height="100" class="d-inline-block" style="max-width: 280px; object-fit: contain;">
+        </div>
+
+        <h1 class="display-4 fw-bolder text-dark mb-3" style="letter-spacing: -0.035em;">
+            Select Your Workspace Role
+        </h1>
+        <p class="lead text-muted mx-auto mb-5" style="max-width: 620px; font-size: 1.15rem;">
+            Select your portal to access live inventory tracking, food donations, rescue routing, or platform operations.
+        </p>
+
+        <!-- 4 Role Selection Cards -->
+        <div class="row g-4 justify-content-center">
+
+            <!-- 1. DONOR -->
+            <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="card role-card p-4 h-100 text-center">
+                    <div class="role-icon-box bg-success-subtle text-success">
+                        <i class="bi bi-basket2-fill"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-2">Food Donor</h3>
+                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">
+                        Have surplus food from home, restaurants, catering, or events? List donations and prevent hunger.
+                    </p>
+                    <div class="d-grid mt-4">
+                        <a href="/donor" class="btn btn-success btn-lg fw-bold">
+                            <span>Enter Donor Portal</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. RECEIVER -->
+            <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="card role-card p-4 h-100 text-center">
+                    <div class="role-icon-box bg-primary-subtle text-primary">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-2">Food Receiver</h3>
+                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">
+                        Looking for meals for yourself, family, shelters, or NGOs? Browse available stock and place claims.
+                    </p>
+                    <div class="d-grid mt-4">
+                        <a href="/receiver" class="btn btn-primary btn-lg fw-bold">
+                            <span>Enter Receiver Portal</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. VOLUNTEER -->
+            <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="card role-card p-4 h-100 text-center">
+                    <div class="role-icon-box bg-warning-subtle text-warning">
+                        <i class="bi bi-bicycle"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-2">Volunteer Partner</h3>
+                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">
+                        Bridge the gap. Pick up prepared meals from donors and deliver directly to verified receivers in need.
+                    </p>
+                    <div class="d-grid mt-4">
+                        <a href="/volunteer" class="btn btn-warning btn-lg fw-bold">
+                            <span>Enter Volunteer Portal</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ADMIN -->
+            <div class="col-xl-3 col-lg-6 col-md-6">
+                <div class="card role-card role-admin p-4 h-100 text-center">
+                    <div class="role-icon-box bg-dark-subtle text-dark">
+                        <i class="bi bi-speedometer2"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-2">Platform Admin</h3>
+                    <p class="text-muted flex-grow-1" style="font-size: 0.95rem;">
+                        System administration, live inventory metrics, approving requests, volunteer verification, and logs.
+                    </p>
+                    <div class="d-grid mt-4">
+                        <a href="/admin" class="btn btn-dark btn-lg fw-bold">
+                            <span>Enter Admin Panel</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}

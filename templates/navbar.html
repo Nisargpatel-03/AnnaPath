@@ -1,0 +1,90 @@
+<nav class="navbar navbar-expand-lg">
+    <div class="container d-flex justify-content-between align-items-center">
+        
+        <!-- Brand Logo -->
+        {% if session.get('user_id') or session.get('user_name') %}
+            <div class="navbar-brand mb-0 d-flex align-items-center" style="cursor: default; user-select: none;">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AnnaPath" height="48" class="d-inline-block align-middle" style="max-width: 175px; object-fit: contain;">
+            </div>
+        {% else %}
+            <a class="navbar-brand mb-0 text-decoration-none d-flex align-items-center" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AnnaPath" height="48" class="d-inline-block align-middle" style="max-width: 175px; object-fit: contain;">
+            </a>
+        {% endif %}
+
+        <!-- Quick Navigation Links (Logged In Roles) -->
+        {% if session.get('user_id') or session.get('user_name') %}
+            <div class="d-none d-md-flex align-items-center gap-2 ms-4 me-auto">
+                {% if session.get('role') == 'Donor' %}
+                    <a href="/donor" class="nav-link">
+                        <i class="bi bi-speedometer2 me-1"></i> Donor Portal
+                    </a>
+                    <a href="/add_food" class="nav-link">
+                        <i class="bi bi-plus-circle me-1"></i> Donate Food
+                    </a>
+                {% elif session.get('role') == 'Receiver' %}
+                    <a href="/receiver" class="nav-link">
+                        <i class="bi bi-speedometer2 me-1"></i> Receiver Portal
+                    </a>
+                    <a href="/tracking" class="nav-link">
+                        <i class="bi bi-truck me-1"></i> Tracking
+                    </a>
+                {% elif session.get('role') == 'Volunteer' %}
+                    <a href="/volunteer" class="nav-link">
+                        <i class="bi bi-bicycle me-1"></i> Volunteer Portal
+                    </a>
+                    <a href="/tracking" class="nav-link">
+                        <i class="bi bi-truck me-1"></i> Tracking
+                    </a>
+                {% elif session.get('role') == 'Admin' %}
+                    <a href="/admin" class="nav-link">
+                        <i class="bi bi-speedometer2 me-1"></i> Admin Panel
+                    </a>
+                    <a href="/tracking" class="nav-link">
+                        <i class="bi bi-truck me-1"></i> Tracking
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- User Controls / Session State -->
+        <div class="d-flex align-items-center gap-3 ms-auto">
+            {% if session.get('user_id') or session.get('user_name') %}
+                <!-- Active User Status Chip -->
+                <div class="user-profile-badge d-none d-sm-flex align-items-center gap-2">
+                    <div class="user-avatar-circle">
+                        {{ session.get('user_name', 'U')[0]|upper }}
+                    </div>
+                    <span class="fw-semibold text-dark">{{ session.get('user_name', 'User') }}</span>
+                    {% if session.get('role') == 'Admin' %}
+                        <span class="badge bg-dark text-white rounded-pill px-2 py-1" style="font-size: 0.7rem;">Admin</span>
+                    {% elif session.get('role') == 'Donor' %}
+                        <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1" style="font-size: 0.7rem;">Donor</span>
+                    {% elif session.get('role') == 'Receiver' %}
+                        <span class="badge bg-primary-subtle text-primary rounded-pill px-2 py-1" style="font-size: 0.7rem;">Receiver</span>
+                    {% elif session.get('role') == 'Volunteer' %}
+                        <span class="badge bg-warning-subtle text-dark rounded-pill px-2 py-1" style="font-size: 0.7rem;">Volunteer</span>
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill px-2 py-1" style="font-size: 0.7rem;">{{ session.get('role') }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Logout Button -->
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-none d-inline-flex align-items-center gap-1" id="nav-logout-btn">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
+                </a>
+            {% else %}
+                <a href="/food_list" class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-none d-sm-inline-flex">
+                    <i class="bi bi-basket2 me-1"></i>
+                    <span>Available Food</span>
+                </a>
+                <a href="/login" class="btn btn-outline-success btn-sm rounded-pill px-3">
+                    <i class="bi bi-person-fill"></i>
+                    <span>Sign In</span>
+                </a>
+            {% endif %}
+        </div>
+
+    </div>
+</nav>

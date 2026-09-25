@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+<h2 class="text-success mb-4">
+Dashboard
+</h2>
+
+<div class="row">
+
+<div class="col-md-4">
+
+<div class="card p-3 text-center">
+
+<h4>
+Donate Food
+</h4>
+
+<a href="/add_food" class="btn btn-success mt-3">
+Open
+</a>
+
+</div>
+
+</div>
+
+<div class="col-md-4">
+
+<div class="card p-3 text-center">
+
+<h4>
+Available Food
+</h4>
+
+<a href="/food_list" class="btn btn-success mt-3">
+View
+</a>
+
+</div>
+
+</div>
+
+<div class="col-md-4">
+
+<div class="card p-3 text-center">
+
+<h4>
+Volunteer
+</h4>
+
+<a href="/volunteer" class="btn btn-success mt-3">
+Open
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+<hr class="my-5">
+
+<div class="row">
+
+<div class="col-md-6">
+
+<div class="card p-4">
+
+<h4 class="text-success">
+Live Donation Tracking
+</h4>
+
+<ul class="list-group">
+
+<li class="list-group-item">Food Listed</li>
+<li class="list-group-item">Request Received</li>
+<li class="list-group-item">Volunteer Assigned</li>
+<li class="list-group-item">Food Picked Up</li>
+<li class="list-group-item">Delivered</li>
+
+</ul>
+
+</div>
+
+</div>
+
+<div class="col-md-6">
+
+<div class="card p-4">
+
+<h4 class="text-success">
+Quick Actions
+</h4>
+
+<div class="d-grid gap-3">
+
+<a href="/add_food" class="btn btn-success">
+Donate Food
+</a>
+
+<a href="/request_food" class="btn btn-primary">
+Request Food
+</a>
+
+<a href="/tracking" class="btn btn-warning">
+Track Donation
+</a>
+
+<a href="/admin" class="btn btn-dark">
+Admin Panel
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,758 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-4 mb-5">
+
+    <!-- Role Header Banner -->
+    <div class="portal-hero shadow-sm d-flex flex-wrap justify-content-between align-items-center" style="background: linear-gradient(135deg, #212529 0%, #343a40 100%);">
+        <div>
+            <h1 class="display-6 fw-bold mb-1">Admin Dashboard</h1>
+            <p class="mb-0 opacity-75">Platform analytics, volunteer approvals, food request management, and database inspection.</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <a href="/database" class="btn btn-outline-light btn-lg">
+                Inspect Database
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Grid with Live Inventory KPI -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100">
+                <span class="text-muted small fw-semibold">Total Users</span>
+                <h2 class="text-dark fw-bold mb-0">{{ users_count if users_count is defined else 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100 bg-success-subtle border-success-subtle">
+                <span class="text-success-emphasis small fw-bold">Live In-Stock</span>
+                <h2 class="text-success fw-bold mb-0"><i class="bi bi-circle-fill fs-5 me-1 text-success align-middle"></i>{{ total_live_stock if total_live_stock is defined else 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100">
+                <span class="text-muted small fw-semibold">Claimed Units</span>
+                <h2 class="text-secondary fw-bold mb-0">{{ total_claimed_stock if total_claimed_stock is defined else 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100">
+                <span class="text-muted small fw-semibold">Food Listings</span>
+                <h2 class="text-primary fw-bold mb-0">{{ food_count if food_count is defined else 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100">
+                <span class="text-muted small fw-semibold">Food Requests</span>
+                <h2 class="text-primary fw-bold mb-0">{{ requests_count if requests_count is defined else 0 }}</h2>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card p-3 text-center shadow-sm h-100 {% if pending_volunteers_count and pending_volunteers_count > 0 %}border border-warning border-2{% endif %}">
+                <span class="text-muted small fw-semibold">Volunteers</span>
+                <h2 class="text-dark fw-bold mb-0">{{ volunteer_count if volunteer_count is defined else 0 }}</h2>
+                {% if pending_volunteers_count and pending_volunteers_count > 0 %}
+                    <span class="badge bg-warning text-dark">{{ pending_volunteers_count }} Pending</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-5">
+
+    <!-- Volunteers Management Section with Approval & Email Dispatch -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2" id="volunteersSection">
+        <div>
+            <h3 class="text-success m-0 fw-bold">Manage Volunteer Registrations & Approvals</h3>
+            <p class="text-muted mb-0 small">Review incoming volunteer requests, accept them to send official confirmation emails, or adjust status.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if pending_volunteers_count and pending_volunteers_count > 0 %}
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ pending_volunteers_count }} Awaiting Decision
+                </span>
+            {% endif %}
+            <button type="button" class="btn btn-success fw-bold shadow-sm d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addVolModal">
+                <i class="bi bi-plus-lg me-1"></i> Add Volunteer
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Volunteer Name</th>
+                            <th>Contact Information</th>
+                            <th>Password</th>
+                            <th>Assigned Area</th>
+                            <th>Available Hours</th>
+                            <th>Current Status</th>
+                            <th class="text-end pe-4">Admin Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if volunteers %}
+                            {% for vol in volunteers %}
+                            <tr {% if vol['status'] == 'Pending Approval' %}class="table-warning"{% endif %}>
+                                <td class="ps-4">
+                                    <b>{{ vol['name'] }}</b>
+                                    {% if vol['status'] == 'Pending Approval' %}
+                                        <span class="badge bg-danger ms-1">NEW</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div><a href="mailto:{{ vol['email'] }}" class="text-decoration-none"><i class="bi bi-envelope me-1 text-secondary"></i>{{ vol['email'] or 'No Email' }}</a></div>
+                                    <div class="small text-muted"><a href="tel:{{ vol['phone'] }}" class="text-decoration-none text-muted"><i class="bi bi-telephone me-1 text-secondary"></i>{{ vol['phone'] or 'No Phone' }}</a></div>
+                                </td>
+                                <td>
+                                    <div class="d-inline-flex align-items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm">
+                                        <code class="fw-bold text-dark font-monospace" id="pwdVal{{ vol['id'] }}">••••••</code>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary" 
+                                                onclick="const el = document.getElementById('pwdVal{{ vol['id'] }}'); const ic = this.querySelector('i'); if(el.innerText === '••••••'){ el.innerText = '{{ vol['password'] }}'; ic.className = 'bi bi-eye-slash'; } else { el.innerText = '••••••'; ic.className = 'bi bi-eye'; }" 
+                                                title="Click to Reveal / Hide Password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>{{ vol['area'] }}</td>
+                                <td>{{ vol['time'] or 'Flexible' }}</td>
+                                <td>
+                                    {% if vol['status'] == 'Pending Approval' %}
+                                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-clock-history me-1"></i>Pending Approval</span>
+                                    {% elif vol['status'] == 'Approved' or vol['status'] == 'Available' %}
+                                        <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>Approved & Available</span>
+                                    {% elif vol['status'] == 'Active On Route' %}
+                                        <span class="badge bg-primary fs-6"><i class="bi bi-truck me-1"></i>Active On Route</span>
+                                    {% elif vol['status'] == 'Rejected' %}
+                                        <span class="badge bg-danger fs-6"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary fs-6">{{ vol['status'] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-flex justify-content-end align-items-center gap-1 flex-wrap">
+                                        {% if vol['status'] == 'Pending Approval' %}
+                                            <a href="/admin/volunteer/{{ vol['id'] }}/approve" class="btn btn-success btn-sm fw-bold" title="Accept & notify via email">
+                                                <i class="bi bi-check-lg me-1"></i>Accept
+                                            </a>
+                                            <a href="/admin/volunteer/{{ vol['id'] }}/reject" class="btn btn-outline-danger btn-sm" title="Reject Application">
+                                                <i class="bi bi-x-lg me-1"></i>Reject
+                                            </a>
+                                        {% else %}
+                                            <div class="dropdown d-inline-block">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                    Status
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                                    <li><a class="dropdown-item" href="/admin/volunteer/{{ vol['id'] }}/status/Available">Set Available</a></li>
+                                                    <li><a class="dropdown-item" href="/admin/volunteer/{{ vol['id'] }}/status/Active On Route">Set Active On Route</a></li>
+                                                    <li><a class="dropdown-item" href="/admin/volunteer/{{ vol['id'] }}/status/On Leave">Set On Leave</a></li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li><a class="dropdown-item text-success" href="/admin/volunteer/{{ vol['id'] }}/approve">Resend Approval Email</a></li>
+                                                    <li><a class="dropdown-item text-warning" href="/admin/volunteer/{{ vol['id'] }}/reject">Revoke / Reject</a></li>
+                                                </ul>
+                                            </div>
+                                        {% endif %}
+
+                                        <!-- Edit Volunteer Button (Triggers Modal) -->
+                                        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#editVolModal{{ vol['id'] }}" title="Edit Details">
+                                            <i class="bi bi-pencil-square me-1"></i>Edit
+                                        </button>
+
+                                        <!-- Remove Volunteer Button -->
+                                        <a href="/admin/volunteer/{{ vol['id'] }}/delete" class="btn btn-sm btn-outline-danger fw-semibold" onclick="return confirm('Are you sure you want to permanently remove volunteer \'{{ vol['name'] }}\'?');" title="Remove Volunteer">
+                                            <i class="bi bi-trash3 me-1"></i>Remove
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">No volunteers registered yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals for Editing Volunteers -->
+    {% if volunteers %}
+        {% for vol in volunteers %}
+        <div class="modal fade text-start" id="editVolModal{{ vol['id'] }}" tabindex="-1" aria-labelledby="editVolLabel{{ vol['id'] }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold" id="editVolLabel{{ vol['id'] }}">
+                            <i class="bi bi-pencil-square me-2"></i>Edit Volunteer: {{ vol['name'] }}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="/admin/volunteer/{{ vol['id'] }}/edit" method="POST">
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Full Name</label>
+                                <input type="text" name="name" class="form-control" value="{{ vol['name'] }}" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Email Address</label>
+                                    <input type="email" name="email" class="form-control" value="{{ vol['email'] or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Phone Number</label>
+                                    <input type="tel" name="phone" class="form-control" value="{{ vol['phone'] or '' }}">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Assigned Area</label>
+                                    <input type="text" name="area" class="form-control" value="{{ vol['area'] or '' }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Available Hours</label>
+                                    <input type="text" name="time" class="form-control" value="{{ vol['time'] or '' }}" placeholder="e.g. 6 PM - 9 PM">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Volunteer Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="Approved" {% if vol['status'] == 'Approved' %}selected{% endif %}>Approved (Active Deliverer)</option>
+                                        <option value="Available" {% if vol['status'] == 'Available' %}selected{% endif %}>Available</option>
+                                        <option value="Active On Route" {% if vol['status'] == 'Active On Route' %}selected{% endif %}>Active On Route</option>
+                                        <option value="Pending Approval" {% if vol['status'] == 'Pending Approval' %}selected{% endif %}>Pending Approval</option>
+                                        <option value="On Leave" {% if vol['status'] == 'On Leave' %}selected{% endif %}>On Leave</option>
+                                        <option value="Rejected" {% if vol['status'] == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Login Password</label>
+                                    <div class="input-group">
+                                        <input type="text" name="password" class="form-control font-monospace fw-bold" value="{{ vol['password'] }}" required>
+                                        <span class="input-group-text bg-light"><i class="bi bi-key-fill text-secondary"></i></span>
+                                    </div>
+                                    <small class="text-muted">Password can be viewed & changed by Admin</small>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">Admin Notes / Remarks</label>
+                                <textarea name="admin_notes" class="form-control" rows="2" placeholder="Optional notes for internal tracking...">{{ vol['admin_notes'] or '' }}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Modal for Adding New Volunteer -->
+    <div class="modal fade text-start" id="addVolModal" tabindex="-1" aria-labelledby="addVolLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="addVolLabel">
+                        <i class="bi bi-person-plus-fill me-2"></i>Add New Volunteer
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/admin/volunteer/add" method="POST">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Full Name *</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Email Address</label>
+                                <input type="email" name="email" class="form-control" placeholder="rahul@example.com">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Phone Number</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="9876543210">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Assigned Area *</label>
+                                <input type="text" name="area" class="form-control" placeholder="e.g. Nikol, Bodakdev" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Available Hours</label>
+                                <input type="text" name="time" class="form-control" placeholder="e.g. Evenings (6-9 PM)">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Initial Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="Approved" selected>Approved (Can deliver immediately)</option>
+                                    <option value="Available">Available</option>
+                                    <option value="Active On Route">Active On Route</option>
+                                    <option value="Pending Approval">Pending Approval</option>
+                                    <option value="On Leave">On Leave</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Initial Password</label>
+                                <input type="text" name="password" class="form-control" value="volunteer123" placeholder="Login password">
+                                <small class="text-muted">For volunteer to log in</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold">Admin Notes / Remarks</label>
+                            <textarea name="admin_notes" class="form-control" rows="2" placeholder="Optional internal notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-plus-lg me-1"></i>Create Volunteer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Notifications Log -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="text-success m-0 fw-bold">Recent Email Notifications Dispatched</h3>
+            <p class="text-muted mb-0 small">Automatic emails triggered by system approvals and volunteer updates.</p>
+        </div>
+        <span class="badge bg-secondary">System Audit</span>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Recipient Email</th>
+                            <th>Subject</th>
+                            <th>Sent Timestamp</th>
+                            <th>Delivery Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if email_logs %}
+                            {% for log in email_logs %}
+                            <tr>
+                                <td class="ps-4"><b>{{ log['recipient'] }}</b></td>
+                                <td>{{ log['subject'] }}</td>
+                                <td><small class="text-muted">{{ log['sent_at'] }}</small></td>
+                                <td>
+                                    <span class="badge {% if 'SMTP' in log['status'] %}bg-success{% elif 'Error' in log['status'] %}bg-danger{% else %}bg-info text-dark{% endif %}">
+                                        {{ log['status'] }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">No emails logged yet. When you approve a volunteer, the email will appear here!</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Food Requests Section -->
+    <h3 class="text-success mb-3 fw-bold">
+        Manage Food Requests
+    </h3>
+
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Requester</th>
+                            <th>Phone</th>
+                            <th>Food Details</th>
+                            <th>Address</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if requests %}
+                            {% for req in requests %}
+                            <tr>
+                                <td class="ps-4"><b>{{ req['name'] or req['user_name'] }}</b></td>
+                                <td>{{ req['phone'] or 'N/A' }}</td>
+                                <td>{{ req['food_name'] or req['user_name'] }} {% if req['quantity'] %}(Qty: {{ req['quantity'] }}){% endif %}</td>
+                                <td>{{ req['address'] or 'N/A' }}</td>
+                                <td>
+                                    <span class="badge {% if req['status'] == 'Delivered' %}bg-success{% elif req['status'] == 'Pending' %}bg-warning text-dark{% else %}bg-primary{% endif %}">
+                                        {{ req['status'] }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No food requests submitted yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Central Food Inventory Management Section -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2" id="inventorySection">
+        <div>
+            <h3 class="text-success m-0 fw-bold"><i class="bi bi-box-seam me-2"></i>Central Food Inventory Management</h3>
+            <p class="text-muted mb-0 small">Admin controls: add, edit live stock, adjust quantities, change pickup status, or remove items.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">
+                <i class="bi bi-circle-fill me-1 text-light"></i>Total Live Stock: {{ total_live_stock if total_live_stock is defined else 0 }} Units
+            </span>
+            <button class="btn btn-success fw-bold shadow-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addFoodModal">
+                <i class="bi bi-plus-lg me-1"></i> Add Food Item
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-5 rounded-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Food ID</th>
+                            <th>Food Details</th>
+                            <th>Donor & Location</th>
+                            <th>Total Donated</th>
+                            <th>Live Stock Remaining</th>
+                            <th>Claimed</th>
+                            <th>Pickup State</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Manage Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if foods %}
+                            {% for item in foods %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="badge bg-dark fw-bold">#{{ item['food_code'] or 'FOOD-' ~ item['id'] }}</span>
+                                </td>
+                                <td>
+                                    <b class="text-dark">{{ item['food_name'] }}</b>
+                                    <div class="small text-muted">{{ item['food_type'] }} &bull; {% if item['food_type'] == 'Donate' %}Free{% else %}₹{{ item['price'] }}{% endif %}</div>
+                                </td>
+                                <td>
+                                    <div><b>{{ item['seller_name'] }}</b></div>
+                                    {% if item['phone'] %}
+                                        <div><small><a href="tel:{{ item['phone'] }}" class="text-decoration-none text-muted"><i class="bi bi-telephone me-1 text-secondary"></i>{{ item['phone'] }}</a></small></div>
+                                    {% endif %}
+                                    <div class="small text-muted"><i class="bi bi-geo-alt me-1 text-secondary"></i>{{ item['location'] }}</div>
+                                </td>
+                                <td>
+                                    <b>{{ item['initial_quantity'] or item['quantity'] }}</b> <small class="text-muted">{{ item['unit'] }}</small>
+                                </td>
+                                <td>
+                                    {% if item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Pending Pickup ({{ item['available_quantity'] }} {{ item['unit'] }})</span>
+                                    {% elif item['status'] == 'Active Pickup' %}
+                                        <span class="badge bg-primary text-white"><i class="bi bi-truck me-1"></i>Active Pickup ({{ item['available_quantity'] }} {{ item['unit'] }})</span>
+                                    {% elif item['available_quantity'] > 5 %}
+                                        <span class="badge bg-success fs-6"><i class="bi bi-circle-fill me-1"></i>{{ item['available_quantity'] }} {{ item['unit'] }}</span>
+                                    {% elif item['available_quantity'] > 0 %}
+                                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ item['available_quantity'] }} {{ item['unit'] }} (Low)</span>
+                                    {% else %}
+                                        <span class="badge bg-danger fs-6"><i class="bi bi-x-circle-fill me-1"></i>Out of Stock</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item['claimed_quantity'] or 0 }} {{ item['unit'] }}</span>
+                                </td>
+                                <td>
+                                    {% if item['status'] == 'Active Pickup' %}
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            <i class="bi bi-bicycle me-1"></i>On Route: <b>{{ item['picked_up_by'] or 'Volunteer' }}</b>
+                                        </span>
+                                    {% elif item['status'] in ['Complete Pickup', 'Available'] %}
+                                        <span class="badge bg-success-subtle text-success">
+                                            <i class="bi bi-truck me-1"></i>Picked up by <b>{{ item['picked_up_by'] or 'Admin' }}</b>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning-subtle text-dark">
+                                            <i class="bi bi-clock me-1"></i>Pending Pickup
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item['status'] in ['Complete Pickup', 'Available'] %}
+                                        <span class="badge bg-success"><i class="bi bi-circle-fill me-1"></i>Live In Stock</span>
+                                    {% elif item['status'] == 'Active Pickup' %}
+                                        <span class="badge bg-primary"><i class="bi bi-truck me-1"></i>Active Pickup</span>
+                                    {% elif item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Pending Pickup</span>
+                                    {% elif item['status'] == 'Out of Stock' %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>Out of Stock</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item['status'] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+                                        
+                                        <!-- Quick Pickup Actions -->
+                                        {% if item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                            <a href="/volunteer/complete_pickup/{{ item['id'] }}" class="btn btn-sm btn-success fw-bold shadow-sm" title="Mark as Complete Pickup and add to live stock">
+                                                <i class="bi bi-check-lg me-1"></i>Stock
+                                            </a>
+                                        {% elif item['status'] == 'Active Pickup' %}
+                                            <a href="/volunteer/complete_pickup/{{ item['id'] }}" class="btn btn-sm btn-success fw-bold shadow-sm" title="Complete pickup and add to live stock">
+                                                <i class="bi bi-check-lg me-1"></i>Complete
+                                            </a>
+                                        {% endif %}
+
+                                        <!-- Edit Modal Trigger -->
+                                        <button class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#editFoodModal{{ item['id'] }}" title="Edit inventory item">
+                                            <i class="bi bi-pencil-square me-1"></i>Edit
+                                        </button>
+
+                                        <!-- Status Switcher Dropdown -->
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Status
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                                <li><a class="dropdown-item text-success fw-bold" href="/admin/food/{{ item['id'] }}/status/Complete%20Pickup"><i class="bi bi-check-circle me-1"></i>Set Live In Stock</a></li>
+                                                <li><a class="dropdown-item text-primary" href="/admin/food/{{ item['id'] }}/status/Active%20Pickup"><i class="bi bi-truck me-1"></i>Set Active Pickup</a></li>
+                                                <li><a class="dropdown-item text-warning" href="/admin/food/{{ item['id'] }}/status/Pending%20Pickup"><i class="bi bi-clock-history me-1"></i>Set Pending Pickup</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="/admin/food/{{ item['id'] }}/status/Out%20of%20Stock"><i class="bi bi-x-circle me-1"></i>Set Out of Stock</a></li>
+                                            </ul>
+                                        </div>
+
+                                        <!-- Delete Button -->
+                                        <a href="/admin/food/{{ item['id'] }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to permanently delete food item #{{ item['food_code'] }} ({{ item['food_name'] }}) from inventory?');" title="Delete Food Item">
+                                            <i class="bi bi-trash3"></i>
+                                        </a>
+
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Modal for Editing Food Item -->
+                            <div class="modal fade text-start" id="editFoodModal{{ item['id'] }}" tabindex="-1" aria-labelledby="editFoodLabel{{ item['id'] }}" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow">
+                                        <div class="modal-header bg-success text-white">
+                                            <h5 class="modal-title fw-bold" id="editFoodLabel{{ item['id'] }}">
+                                                <i class="bi bi-pencil-square me-2"></i>Edit Food Inventory #{{ item['food_code'] }}
+                                            </h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="/admin/food/{{ item['id'] }}/edit" method="POST">
+                                            <div class="modal-body p-4">
+                                                
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Food Name</label>
+                                                    <input type="text" name="food_name" class="form-control fw-bold" value="{{ item['food_name'] }}" required>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Live Stock Available</label>
+                                                        <input type="number" name="available_quantity" class="form-control fw-bold text-success" value="{{ item['available_quantity'] }}" min="0" required>
+                                                        <small class="text-muted">Currently in stock</small>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Claimed Quantity</label>
+                                                        <input type="number" name="claimed_quantity" class="form-control" value="{{ item['claimed_quantity'] or 0 }}" min="0" required>
+                                                        <small class="text-muted">Total claimed by receivers</small>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Unit</label>
+                                                        <input type="text" name="unit" class="form-control" value="{{ item['unit'] or 'items' }}" required>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Inventory Status</label>
+                                                        <select name="status" class="form-select fw-bold">
+                                                            <option value="Complete Pickup" {% if item['status'] in ['Complete Pickup', 'Available'] %}selected{% endif %}>Complete Pickup (Live Stock)</option>
+                                                            <option value="Pending Pickup" {% if item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}selected{% endif %}>Pending Pickup</option>
+                                                            <option value="Active Pickup" {% if item['status'] == 'Active Pickup' %}selected{% endif %}>Active Pickup</option>
+                                                            <option value="Out of Stock" {% if item['status'] == 'Out of Stock' %}selected{% endif %}>Out of Stock</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Donor / Source Name</label>
+                                                        <input type="text" name="seller_name" class="form-control" value="{{ item['seller_name'] }}" required>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Donor Phone</label>
+                                                        <input type="tel" name="phone" class="form-control" value="{{ item['phone'] or '' }}">
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Pickup Location / Depot</label>
+                                                    <input type="text" name="location" class="form-control" value="{{ item['location'] }}" required>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Food Type</label>
+                                                        <select name="food_type" class="form-select">
+                                                            <option value="Donate" {% if item['food_type'] == 'Donate' %}selected{% endif %}>Free Donation</option>
+                                                            <option value="Discounted" {% if item['food_type'] != 'Donate' %}selected{% endif %}>Discounted</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label fw-semibold">Price (₹)</label>
+                                                        <input type="number" name="price" class="form-control" value="{{ item['price'] or 0 }}" min="0">
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-2">
+                                                    <label class="form-label fw-semibold">Volunteer Assigned / Picked Up By</label>
+                                                    <input type="text" name="picked_up_by" class="form-control" value="{{ item['picked_up_by'] or '' }}" placeholder="e.g. Ramesh Kumar or Admin">
+                                                </div>
+
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    No food inventory records yet. Click <b>"Add Food Item"</b> to create inventory directly!
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Adding New Food to Inventory (Admin) -->
+    <div class="modal fade text-start" id="addFoodModal" tabindex="-1" aria-labelledby="addFoodLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="addFoodLabel">
+                        <i class="bi bi-plus-circle-fill me-2"></i>Add Food Item to Central Inventory
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/admin/food/add" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body p-4">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Food Name</label>
+                            <input type="text" name="food_name" class="form-control" placeholder="e.g. Dal Makhani, 50 Chapati, Veg Pulao" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-7 mb-3">
+                                <label class="form-label fw-semibold">Quantity</label>
+                                <input type="text" name="quantity" class="form-control" placeholder="e.g. 30 packets or 50 items" required>
+                                <small class="text-muted">Enter number and unit</small>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label fw-semibold">Initial Status</label>
+                                <select name="status" class="form-select fw-bold text-success">
+                                    <option value="Complete Pickup" selected>Live In Stock</option>
+                                    <option value="Pending Pickup">Pending Pickup</option>
+                                    <option value="Active Pickup">Active Pickup</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Donor / Source Name</label>
+                                <input type="text" name="seller_name" class="form-control" value="AnnaPath Central Kitchen" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Donor Phone</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="e.g. 9876543210">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Pickup Location / Depot</label>
+                            <input type="text" name="location" class="form-control" value="Central Depot, Ahmedabad" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Food Type</label>
+                                <select name="food_type" class="form-select">
+                                    <option value="Donate" selected>Free Donation</option>
+                                    <option value="Discounted">Discounted Price</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Price (₹)</label>
+                                <input type="number" name="price" class="form-control" value="0" min="0">
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold">Food Photo <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span></label>
+                            <input type="file" name="image" class="form-control" accept="image/*">
+                            <small class="text-muted">Leave empty for default food badge.</small>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-plus-lg me-1"></i>Add to Live Inventory</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-5 mb-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-7 col-md-9">
+
+            <div class="card shadow p-4 p-md-5 border-0 rounded-4">
+
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-dark mt-1">Request Free Food</h2>
+                    <p class="text-muted small">Specify how much you need. Inventory stock will automatically update upon submitting.</p>
+                </div>
+
+                <form action="/request_food" method="POST">
+
+                    <!-- Selected Food Item / Dropdown -->
+                    {% if selected_food %}
+                        <input type="hidden" name="food_id" value="{{ selected_food['id'] }}">
+                        <input type="hidden" name="food" value="{{ selected_food['food_name'] }}">
+
+                        <div class="card bg-success-subtle border-0 p-3 mb-4 rounded-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-dark fw-bold">#{{ selected_food['food_code'] }}</span>
+                                <span class="badge bg-success">Live in Inventory</span>
+                            </div>
+                            <h4 class="fw-bold text-dark m-0">{{ selected_food['food_name'] }}</h4>
+                            <div class="small text-muted mt-1">
+                                <span><i class="bi bi-person text-secondary me-1"></i>Donor: {{ selected_food['seller_name'] }}</span> &bull; 
+                                <span><i class="bi bi-geo-alt text-secondary me-1"></i>{{ selected_food['location'] }}</span>
+                            </div>
+                            <div class="mt-2 pt-2 border-top border-success-subtle d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold text-dark">Available Live Stock:</span>
+                                <span class="fs-5 fw-bold text-success d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-circle-fill text-success" style="font-size: 0.75rem;"></i> {{ selected_food['available_quantity'] }} {{ selected_food['unit'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                    {% elif available_foods %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Select Food from Live Inventory <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-lg" name="food_id" id="foodSelector" onchange="updateStockNotice()" required>
+                                <option value="">-- Choose an item from available stock --</option>
+                                {% for item in available_foods %}
+                                    <option value="{{ item['id'] }}" 
+                                            data-name="{{ item['food_name'] }}"
+                                            data-avail="{{ item['available_quantity'] }}"
+                                            data-unit="{{ item['unit'] }}">
+                                        {{ item['food_name'] }} (#{{ item['food_code'] }}) &mdash; Live Stock: {{ item['available_quantity'] }} {{ item['unit'] }} ({{ item['location'] }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <input type="hidden" name="food" id="selectedFoodName">
+                            <div id="liveStockBanner" class="mt-2 text-success fw-bold small"></div>
+                        </div>
+
+                    {% else %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Food Description</label>
+                            <input type="text" class="form-control" name="food" placeholder="e.g. 5 Roti, Rice & Dal" required>
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Your Full Name</label>
+                            <input type="text" class="form-control" name="name" value="{{ session.get('user_name', '') }}" required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Phone Number</label>
+                            <input type="tel" class="form-control" name="phone" value="{{ session.get('phone', '') }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Quantity Input with Max Limit of Live Stock -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Quantity Needed
+                            {% if selected_food %}
+                                <span class="text-muted fw-normal">(Max: {{ selected_food['available_quantity'] }} {{ selected_food['unit'] }})</span>
+                            {% endif %}
+                        </label>
+                        <input type="number" 
+                               class="form-control form-control-lg" 
+                               name="quantity" 
+                               id="qtyInput"
+                               placeholder="e.g. 7" 
+                               min="1" 
+                               {% if selected_food %}max="{{ selected_food['available_quantity'] }}"{% endif %}
+                               value="1" 
+                               required>
+                        <small class="text-muted">Enter how many units or portions you require (e.g. 7).</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-semibold mb-0">Delivery Address / Landmark</label>
+                            <button type="button" class="btn btn-sm btn-outline-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="detectReceiverLocBtn" onclick="detectReceiverLocation()">
+                                <span id="recLocIcon"><i class="bi bi-geo-alt"></i></span> <span id="recLocBtnText">Set Current Location</span>
+                            </button>
+                        </div>
+                        <textarea class="form-control" rows="2" name="address" id="receiverAddressInput" placeholder="Complete street address or click 'Set Current Location'..." required></textarea>
+                        <input type="hidden" name="latitude" id="receiverLatInput">
+                        <input type="hidden" name="longitude" id="receiverLngInput">
+                        <div id="receiverGpsBanner" class="small mt-1 text-muted"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Special Request / Note (Optional)</label>
+                        <textarea class="form-control" rows="2" name="reason" placeholder="Any dietary needs, number of family members, or delivery timing..."></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button class="btn btn-success btn-lg fw-bold shadow-sm" type="submit">
+                            Submit Request & Update Stock &rarr;
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function updateStockNotice() {
+    const sel = document.getElementById('foodSelector');
+    const banner = document.getElementById('liveStockBanner');
+    const qtyInput = document.getElementById('qtyInput');
+    if (!sel) return;
+
+    const opt = sel.options[sel.selectedIndex];
+    const nameField = document.getElementById('selectedFoodName');
+    if (opt && opt.value) {
+        const avail = opt.getAttribute('data-avail');
+        const unit = opt.getAttribute('data-unit');
+        const foodName = opt.getAttribute('data-name');
+        if (nameField) nameField.value = foodName || '';
+        banner.innerHTML = `<i class="bi bi-circle-fill text-success me-1" style="font-size: 0.75rem;"></i> Available Live Stock: ${avail} ${unit}`;
+        if (qtyInput) {
+            qtyInput.max = avail;
+        }
+    } else {
+        banner.innerText = '';
+        if (nameField) nameField.value = '';
+        if (qtyInput) {
+            qtyInput.removeAttribute('max');
+        }
+    }
+}
+
+function detectReceiverLocation() {
+    const statusBanner = document.getElementById('receiverGpsBanner');
+    const addrInput = document.getElementById('receiverAddressInput');
+    const latInput = document.getElementById('receiverLatInput');
+    const lngInput = document.getElementById('receiverLngInput');
+    const btnText = document.getElementById('recLocBtnText');
+    const locIcon = document.getElementById('recLocIcon');
+
+    if (!navigator.geolocation) {
+        statusBanner.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Geolocation is not supported by your browser. Please type address manually.</span>';
+        return;
+    }
+
+    btnText.innerText = "Detecting GPS...";
+    locIcon.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span>`;
+    statusBanner.innerHTML = '<span class="text-primary"><i class="bi bi-geo-alt me-1"></i> Fetching your delivery GPS coordinates...</span>';
+
+    navigator.geolocation.getCurrentPosition(
+        async function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            latInput.value = lat;
+            lngInput.value = lng;
+
+            locIcon.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+            btnText.innerText = "Location Detected";
+            statusBanner.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Delivery GPS captured: ${lat.toFixed(5)}, ${lng.toFixed(5)}</span> &bull; <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="text-decoration-none">Preview on Map <i class="bi bi-box-arrow-up-right small"></i></a>`;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.display_name) {
+                        addrInput.value = data.display_name;
+                    }
+                }
+            } catch (err) {
+                console.log("Reverse geocode fallback:", err);
+                if (!addrInput.value.trim()) {
+                    addrInput.value = `Delivery Location (GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+                }
+            }
+
+            if (!addrInput.value.trim()) {
+                addrInput.value = `Delivery Location (GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+            }
+        },
+        function(error) {
+            locIcon.innerHTML = '<i class="bi bi-geo-alt"></i>';
+            btnText.innerText = "Set Current Location";
+            let msg = "Could not fetch GPS location. Please type address manually.";
+            if (error.code === 1) msg = "Location permission denied. Please allow location access or type manually.";
+            else if (error.code === 2) msg = "Location unavailable. Please type address manually.";
+            else if (error.code === 3) msg = "Location request timed out. Please type address manually.";
+            statusBanner.innerHTML = `<span class="text-warning fw-semibold"><i class="bi bi-exclamation-circle me-1"></i> ${msg}</span>`;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+</script>
+
+{% endblock %}

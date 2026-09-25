@@ -1,0 +1,169 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-5 mb-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-8 col-md-10">
+
+            <div class="card shadow p-4 p-md-5 border-0 rounded-4">
+
+                <h2 class="text-center text-success mb-4 fw-bold">
+                    Donate Food
+                </h2>
+
+                <form action="/add_food" method="POST" enctype="multipart/form-data">
+
+                    <!-- Donor Name (Pre-filled & Uneditable) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Donor Name</label>
+                        <input type="text"
+                               class="form-control"
+                               name="seller_name"
+                               value="{{ donor_name or session.get('user_name', '') }}"
+                               readonly
+                               style="background-color: #e9ecef; cursor: not-allowed;"
+                               required>
+                        <small class="text-muted"><i class="bi bi-lock-fill me-1"></i>Pre-filled from your registered donor profile</small>
+                    </div>
+
+                    <!-- Donor Mobile Number (Pre-filled & Uneditable) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Donor Mobile Number</label>
+                        <input type="tel"
+                               class="form-control"
+                               name="phone"
+                               value="{{ donor_phone or session.get('phone', '') }}"
+                               readonly
+                               style="background-color: #e9ecef; cursor: not-allowed;"
+                               required>
+                        <small class="text-muted"><i class="bi bi-lock-fill me-1"></i>Pre-filled from your registered donor profile</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Food Name</label>
+                        <input type="text" class="form-control" name="food_name" placeholder="e.g. Roti, Vegetable Rice, Bread" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Quantity</label>
+                        <input type="text" class="form-control" name="quantity" placeholder="e.g. 30 roti, 25 packets, 10 plates" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Food Type</label>
+                        <select class="form-select" name="food_type">
+                            <option value="Donate" selected>Donate (Free)</option>
+                            <option value="Sell">Sell</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Price (₹)</label>
+                        <input type="number" class="form-control" name="price" value="0" placeholder="0 (Leave 0 for free donation)">
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-semibold mb-0">Pickup Location / Address</label>
+                            <button type="button" class="btn btn-sm btn-outline-success fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="detectLocBtn" onclick="detectDonorLocation()">
+                                <span id="locIcon"><i class="bi bi-geo-alt"></i></span> <span id="locBtnText">Set Current Location</span>
+                            </button>
+                        </div>
+                        <input type="text" class="form-control" name="location" id="locationInput" placeholder="Type street address or click 'Set Current Location'..." required>
+                        <input type="hidden" name="latitude" id="latitudeInput">
+                        <input type="hidden" name="longitude" id="longitudeInput">
+                        <div id="gpsStatusBanner" class="small mt-1 text-muted"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            Food Image <span class="badge bg-secondary-subtle text-secondary fw-normal">Optional</span>
+                        </label>
+                        <input type="file" class="form-control" name="image" accept="image/*">
+                        <small class="text-muted">You can leave this blank if you don't have a photo. A default food badge will be displayed.</small>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button class="btn btn-success btn-lg fw-bold" type="submit">
+                            Submit Food
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function detectDonorLocation() {
+    const statusBanner = document.getElementById('gpsStatusBanner');
+    const locInput = document.getElementById('locationInput');
+    const latInput = document.getElementById('latitudeInput');
+    const lngInput = document.getElementById('longitudeInput');
+    const btnText = document.getElementById('locBtnText');
+    const locIcon = document.getElementById('locIcon');
+
+    if (!navigator.geolocation) {
+        statusBanner.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Geolocation is not supported by your browser. Please type address manually.</span>';
+        return;
+    }
+
+    btnText.innerText = "Detecting GPS...";
+    locIcon.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span>`;
+    statusBanner.innerHTML = '<span class="text-primary"><i class="bi bi-geo-alt me-1"></i> Fetching GPS coordinates from your device...</span>';
+
+    navigator.geolocation.getCurrentPosition(
+        async function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            latInput.value = lat;
+            lngInput.value = lng;
+
+            locIcon.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+            btnText.innerText = "Location Detected";
+            statusBanner.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>GPS Location captured: ${lat.toFixed(5)}, ${lng.toFixed(5)}</span> &bull; <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="text-decoration-none">Preview on Map <i class="bi bi-box-arrow-up-right small"></i></a>`;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.display_name) {
+                        locInput.value = data.display_name;
+                    }
+                }
+            } catch (err) {
+                console.log("Reverse geocode fallback:", err);
+                if (!locInput.value.trim()) {
+                    locInput.value = `GPS Location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+                }
+            }
+
+            if (!locInput.value.trim()) {
+                locInput.value = `Current Location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+            }
+        },
+        function(error) {
+            locIcon.innerHTML = '<i class="bi bi-geo-alt"></i>';
+            btnText.innerText = "Set Current Location";
+            let msg = "Could not fetch GPS location. Please type address manually.";
+            if (error.code === 1) msg = "Location permission denied. Please allow location access or type manually.";
+            else if (error.code === 2) msg = "Location unavailable. Please type address manually.";
+            else if (error.code === 3) msg = "Location request timed out. Please type address manually.";
+            statusBanner.innerHTML = `<span class="text-warning fw-semibold"><i class="bi bi-exclamation-circle me-1"></i> ${msg}</span>`;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+</script>
+
+{% endblock %}

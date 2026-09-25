@@ -1,0 +1,268 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-4 mb-5">
+
+    <!-- Role Header Banner -->
+    <div class="portal-hero shadow-sm d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="display-6 fw-bold mb-1">Donor Portal</h1>
+            <p class="mb-0 opacity-75">Share surplus meals from restaurants, homes, or events with people in need.</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2 flex-wrap">
+            <a href="/food_list" class="btn btn-outline-light btn-lg fw-bold shadow-sm">
+                <i class="bi bi-grid-fill"></i> View Available Food
+            </a>
+            <a href="/add_food" class="btn btn-warning btn-lg fw-bold shadow-sm text-dark">
+                + Donate Food Now
+            </a>
+        </div>
+    </div>
+
+    <!-- Live KPI Summary Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-sm-6">
+            <div class="card p-3 shadow-sm h-100 border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-semibold">Total Food Listings</span>
+                        <h3 class="fw-bolder text-dark mb-0 mt-1">{{ total_donations if total_donations is defined else foods|length }}</h3>
+                    </div>
+                    <div class="brand-icon-box bg-slate-100 text-dark" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-sm-6">
+            <div class="card p-3 shadow-sm h-100 border-0 bg-success-subtle border-success-subtle">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-success-emphasis small fw-bold">Live In-Stock</span>
+                        <h3 class="fw-bolder text-success mb-0 mt-1">{{ available_count if available_count is defined else 0 }}</h3>
+                    </div>
+                    <div class="brand-icon-box" style="width: 44px; height: 44px; font-size: 1.25rem; background: var(--primary-600);">
+                        <i class="bi bi-check2-circle"></i>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <a href="/food_list" class="small fw-bold text-success text-decoration-none">
+                        Browse Available Food Catalog &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-sm-6">
+            <div class="card p-3 shadow-sm h-100 border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-semibold">Pending Pickup</span>
+                        <h3 class="fw-bolder text-warning mb-0 mt-1">{{ pending_pickups if pending_pickups is defined else 0 }}</h3>
+                    </div>
+                    <div class="brand-icon-box" style="width: 44px; height: 44px; font-size: 1.25rem; background: var(--amber-500);">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">Awaiting volunteer pickup</small>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-sm-6">
+            <div class="card p-3 shadow-sm h-100 border-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small fw-semibold">Active On Route</span>
+                        <h3 class="fw-bolder text-primary mb-0 mt-1">{{ active_pickups if active_pickups is defined else 0 }}</h3>
+                    </div>
+                    <div class="brand-icon-box" style="width: 44px; height: 44px; font-size: 1.25rem; background: var(--blue-600);">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">Volunteer dispatch in progress</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Listings Table Card -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h4 class="mb-0 text-success fw-bold d-flex align-items-center gap-2">
+                    <i class="bi bi-basket2-fill"></i> Food Inventory & Donation Listings
+                </h4>
+                <p class="text-muted small mb-0">Track all your food items and real-time live stock status.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="/food_list" class="btn btn-outline-success btn-sm fw-bold">
+                    <i class="bi bi-eye-fill"></i> View Available Food
+                </a>
+                <a href="/add_food" class="btn btn-success btn-sm fw-bold">
+                    <i class="bi bi-plus-lg"></i> Add Food
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <!-- Filter Pills -->
+            <div class="btn-group btn-group-sm" role="group" id="donorFilterGroup">
+                <button type="button" class="btn btn-dark active" onclick="filterDonorTable('all', this)">
+                    All Listings ({{ foods|length }})
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterDonorTable('available', this)">
+                    <i class="bi bi-circle-fill text-success me-1" style="font-size: 0.65rem;"></i> Available In-Stock
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterDonorTable('pending', this)">
+                    <i class="bi bi-clock-history text-warning me-1"></i> Pending Pickup
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="filterDonorTable('active', this)">
+                    <i class="bi bi-truck text-primary me-1"></i> Active Pickup
+                </button>
+            </div>
+
+            <!-- Search Field -->
+            <div class="ms-auto" style="min-width: 250px;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" id="donorTableSearch" class="form-control border-start-0" 
+                           placeholder="Filter food, donor, or location..." onkeyup="searchDonorTable()">
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="donorFoodTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Photo</th>
+                            <th>Food Name</th>
+                            <th>Donor Name</th>
+                            <th>Available Quantity</th>
+                            <th>Type / Price</th>
+                            <th>Location</th>
+                            <th>Current Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if foods %}
+                            {% for food in foods %}
+                            {% set is_avail = (food['status'] in ['Complete Pickup', 'Available']) and (food['available_quantity']|int > 0 if food['available_quantity'] is not none else false) %}
+                            {% set is_pend = food['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                            {% set is_act = food['status'] == 'Active Pickup' %}
+                            <tr class="food-row" 
+                                data-status="{% if is_avail %}available{% elif is_pend %}pending{% elif is_act %}active{% else %}other{% endif %}">
+                                <td class="ps-4">
+                                    {% if food['image'] %}
+                                        <img src="{{ url_for('static', filename='images/' + food['image']) }}" height="50" width="50" class="rounded object-fit-cover shadow-sm">
+                                    {% else %}
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center text-secondary" style="width:50px; height:50px; font-size: 1.25rem;"><i class="bi bi-basket2"></i></div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <b class="text-dark">{{ food['food_name'] }}</b>
+                                    {% if food['food_code'] %}
+                                        <div><span class="badge bg-dark fw-bold">#{{ food['food_code'] }}</span></div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ food['seller_name'] }}</td>
+                                <td>
+                                    {% if is_avail %}
+                                        <span class="fs-6 fw-bold text-success d-inline-flex align-items-center gap-1"><i class="bi bi-circle-fill text-success" style="font-size: 0.65rem;"></i> {{ food['available_quantity'] }} {{ food['unit'] }}</span>
+                                        <div class="small text-muted">Ready for distribution</div>
+                                    {% else %}
+                                        <span class="fs-6 fw-semibold text-secondary">{{ food['available_quantity'] or 0 }} {{ food['unit'] }}</span>
+                                    {% endif %}
+                                    <div class="small text-muted">Total: {{ food['initial_quantity'] or food['quantity'] }} &bull; Claimed: {{ food['claimed_quantity'] or 0 }}</div>
+                                </td>
+                                <td>
+                                    {% if food['food_type'] == 'Donate' %}
+                                        <span class="badge bg-success-subtle text-success">Free Donation</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">₹{{ food['price'] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ food['location'] }}</td>
+                                <td>
+                                    {% if food['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-clock-history me-1"></i>Pending Pickup</span>
+                                        <div class="small text-muted">Awaiting volunteer</div>
+                                    {% elif food['status'] == 'Active Pickup' %}
+                                        <span class="badge bg-primary text-white fs-6"><i class="bi bi-truck me-1"></i>Active Pickup</span>
+                                        {% if food['picked_up_by'] %}
+                                            <div class="small text-muted">Volunteer: <b>{{ food['picked_up_by'] }}</b></div>
+                                        {% endif %}
+                                    {% elif food['status'] in ['Complete Pickup', 'Available'] %}
+                                        {% if (food['available_quantity'] or 0) > 0 %}
+                                            <span class="badge bg-success text-white fs-6"><i class="bi bi-check-circle-fill me-1"></i>Available In-Stock</span>
+                                            <div class="small text-muted">Live Inventory ({{ food['available_quantity'] }} {{ food['unit'] }})</div>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Distributed / Out of Stock</span>
+                                        {% endif %}
+                                    {% elif food['status'] == 'Out of Stock' %}
+                                        <span class="badge bg-secondary">Distributed / Out of Stock</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ food['status'] }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    No food listed yet. Click <b>Donate Food Now</b> to add your first item!
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let currentFilter = 'all';
+
+function filterDonorTable(type, btn) {
+    currentFilter = type;
+    
+    // Update button states
+    const buttons = document.querySelectorAll('#donorFilterGroup button');
+    buttons.forEach(b => {
+        b.classList.remove('btn-dark', 'active');
+        b.classList.add('btn-outline-secondary');
+    });
+    btn.classList.remove('btn-outline-secondary');
+    btn.classList.add('btn-dark', 'active');
+
+    searchDonorTable();
+}
+
+function searchDonorTable() {
+    const searchVal = document.getElementById('donorTableSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#donorFoodTable tbody tr.food-row');
+
+    rows.forEach(row => {
+        const rowStatus = row.getAttribute('data-status');
+        const rowText = row.innerText.toLowerCase();
+
+        const matchesStatus = (currentFilter === 'all') || (rowStatus === currentFilter);
+        const matchesSearch = rowText.includes(searchVal);
+
+        if (matchesStatus && matchesSearch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+
+{% endblock %}

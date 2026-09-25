@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnaPath &bull; Food Sharing & Rescue Network</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 & Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <!-- Custom Modern SaaS Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<!-- Modern Corporate Delivery Splash Screen -->
+<div id="splashScreen" class="splash-screen">
+    <div class="splash-content text-center">
+        <!-- 3D Delivery Hero with Exact AnnaPath Branded Box -->
+        <div class="splash-delivery-stage mb-2">
+            <!-- Motion Wind Streaks -->
+            <div class="splash-wind-streak streak-1"></div>
+            <div class="splash-wind-streak streak-2"></div>
+            <div class="splash-wind-streak streak-3"></div>
+
+            <!-- Delivery Rider Image -->
+            <div class="splash-rider-wrap">
+                <img src="{{ url_for('static', filename='images/splash_delivery.png') }}" alt="AnnaPath Delivery Hero" class="splash-rider-img">
+            </div>
+            
+            <!-- Ground Contact Shadow -->
+            <div class="splash-ground-shadow"></div>
+        </div>
+
+        <!-- Corporate Brand & Dynamic Loading Status -->
+        <div class="splash-status-container w-100">
+
+
+            <!-- Sleek Progress Loader with Live % -->
+            <div class="splash-progress-wrapper mx-auto mb-2">
+                <div class="splash-progress-bar" id="splashProgressBar"></div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mx-auto" style="max-width: 260px;">
+                <span class="splash-tagline">A Path to Good Food for Everyone</span>
+                <span class="splash-percent font-monospace" id="splashPercent">0%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'navbar.html' %}
+
+<div class="container mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show d-flex align-items-center justify-content-between shadow-sm" role="alert">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                        {% elif category in ['danger', 'error'] %}
+                            <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                        {% endif %}
+                        <span>{{ message }}</span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+<main class="flex-grow-1">
+{% block content %}
+{% endblock %}
+</main>
+
+<!-- Modern SaaS Logout Confirmation Modal -->
+<div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmModalLabel" aria-hidden="true" style="backdrop-filter: blur(6px);">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content border-0 shadow-2xl" style="border-radius: var(--radius-2xl, 24px); overflow: hidden;">
+            <div class="modal-body p-4 p-md-5 text-center">
+                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center bg-danger-subtle text-danger rounded-circle shadow-sm" 
+                     style="width: 72px; height: 72px; font-size: 2rem;">
+                    <i class="bi bi-box-arrow-right"></i>
+                </div>
+                <h4 class="fw-bolder text-dark mb-2" id="logoutConfirmModalLabel" style="letter-spacing: -0.02em;">
+                    Confirm Logout
+                </h4>
+                <p class="text-muted small mb-4" style="line-height: 1.6;">
+                    Are you sure you want to log out of your <b>AnnaPath</b> session? You will need to sign in again to access your role dashboard.
+                </p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light btn-lg fw-semibold px-4 rounded-pill border" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <a href="{{ url_for('logout') }}" id="confirmLogoutActionBtn" class="btn btn-danger btn-lg fw-bold px-4 rounded-pill shadow-sm">
+                        <span>Yes, Log Out</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Automatically hide notification popups after 4 seconds
+    document.addEventListener("DOMContentLoaded", function () {
+        const alertElements = document.querySelectorAll(".alert-dismissible");
+        alertElements.forEach(function (alertEl) {
+            setTimeout(function () {
+                alertEl.classList.remove("show");
+                alertEl.classList.add("fade");
+                setTimeout(function () {
+                    if (window.bootstrap && bootstrap.Alert) {
+                        const instance = bootstrap.Alert.getOrCreateInstance(alertEl);
+                        if (instance) instance.close();
+                    } else {
+                        alertEl.remove();
+                    }
+                }, 350);
+            }, 4000);
+        });
+    });
+
+    // Intercept logout actions across all roles and display confirmation modal
+    document.addEventListener("DOMContentLoaded", function () {
+        const logoutModalEl = document.getElementById("logoutConfirmModal");
+        const confirmLogoutActionBtn = document.getElementById("confirmLogoutActionBtn");
+
+        document.addEventListener("click", function (e) {
+            // Allow the confirmation modal's own button to navigate normally
+            if (e.target.closest("#confirmLogoutActionBtn")) {
+                return;
+            }
+
+            const trigger = e.target.closest('a[href*="logout"]:not(#confirmLogoutActionBtn), #nav-logout-btn, .logout-btn');
+            if (trigger) {
+                e.preventDefault();
+                const targetUrl = trigger.getAttribute("href") || "/logout";
+                
+                if (confirmLogoutActionBtn) {
+                    confirmLogoutActionBtn.setAttribute("href", targetUrl);
+                }
+
+                if (logoutModalEl && window.bootstrap && bootstrap.Modal) {
+                    const modalInstance = bootstrap.Modal.getOrCreateInstance(logoutModalEl);
+                    modalInstance.show();
+                } else {
+                    if (confirm("Are you sure you want to log out?")) {
+                        window.location.href = targetUrl;
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+{% if session.get('user_id') or session.get('user_name') %}
+<script>
+    // Intercept native browser Back button (←) when user is inside any logged-in role portal
+    (function () {
+        try {
+            history.pushState({ loggedInSession: true }, document.title, window.location.href);
+        } catch (err) {}
+
+        window.addEventListener("popstate", function (event) {
+            // Re-anchor history state so browser doesn't silently exit without confirmation
+            try {
+                history.pushState({ loggedInSession: true }, document.title, window.location.href);
+            } catch (err) {}
+
+            const logoutModalEl = document.getElementById("logoutConfirmModal");
+            const confirmLogoutActionBtn = document.getElementById("confirmLogoutActionBtn");
+
+            if (confirmLogoutActionBtn) {
+                confirmLogoutActionBtn.setAttribute("href", "/logout");
+            }
+
+            if (logoutModalEl && window.bootstrap && bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getOrCreateInstance(logoutModalEl);
+                modalInstance.show();
+            } else {
+                if (confirm("Are you sure you want to log out?")) {
+                    window.location.href = "/logout";
+                }
+            }
+        });
+    })();
+</script>
+{% endif %}
+
+<script>
+    // Modern Splash Screen Controller with Live Progress Simulation
+    (function () {
+        const splash = document.getElementById("splashScreen");
+        if (!splash) return;
+
+        const progressBar = document.getElementById("splashProgressBar");
+        const percentText = document.getElementById("splashPercent");
+
+        let progress = 0;
+        let isDismissed = false;
+
+        // Increment: 2-4% every 90ms → total ~6-7 seconds to reach 100%
+        const progressInterval = setInterval(function () {
+            if (isDismissed) return;
+            progress += Math.floor(Math.random() * 3) + 2;
+            if (progress > 100) progress = 100;
+
+            if (progressBar) progressBar.style.width = progress + "%";
+            if (percentText) percentText.innerText = progress + "%";
+
+            if (progress >= 100) {
+                clearInterval(progressInterval);
+                setTimeout(dismissSplash, 400);
+            }
+        }, 90);
+
+        function dismissSplash() {
+            if (isDismissed) return;
+            isDismissed = true;
+            clearInterval(progressInterval);
+            splash.classList.add("splash-hidden");
+            setTimeout(function () {
+                if (splash && splash.parentNode) {
+                    splash.parentNode.removeChild(splash);
+                }
+            }, 600);
+        }
+
+        // Allow immediate click-to-dismiss
+        splash.addEventListener("click", dismissSplash);
+
+        // Safety fallback: ensure dismissal within 7.5 seconds max
+        setTimeout(dismissSplash, 7500);
+    })();
+</script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>

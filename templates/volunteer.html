@@ -1,0 +1,659 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-4 mb-5">
+
+    <!-- Role Header Banner -->
+    <div class="portal-hero shadow-sm d-flex flex-wrap justify-content-between align-items-center" style="background: linear-gradient(135deg, #F57F17 0%, #E65100 100%);">
+        <div>
+            <h1 class="display-6 fw-bold mb-1">Volunteer Portal</h1>
+            <p class="mb-0 opacity-75">Register with Admin, get approved, pick up food from donors, and deliver safely to receivers.</p>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- STATE 1: Volunteer is Approved -> SHOW DASHBOARD & ORDERS -->
+    <!-- ======================================================== -->
+    {% if (my_vol and my_vol['status'] in ['Approved', 'Available', 'Active On Route']) or session.get('role') == 'Admin' %}
+
+        {% set is_receiver = (active_tab == 'receiver') or (request.args.get('tab') == 'receiver') %}
+
+        <!-- Section Navigation Switcher Tabs (Donor vs Receiver) -->
+        <ul class="nav nav-pills nav-fill mb-4 p-2 bg-white rounded-4 shadow-sm border" id="volunteerTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if not is_receiver %}active{% endif %} fw-bold py-3 fs-5 d-flex align-items-center justify-content-center gap-2" 
+                        id="donor-tab" data-bs-toggle="pill" data-bs-target="#donorSection" type="button" role="tab" aria-controls="donorSection" aria-selected="{% if not is_receiver %}true{% else %}false{% endif %}">
+                    <i class="bi bi-truck me-1"></i> 1. Donor Section (Food Pickups)
+                    <span class="badge bg-warning text-dark rounded-pill">{{ pending_count }} Pending</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if is_receiver %}active{% endif %} fw-bold py-3 fs-5 d-flex align-items-center justify-content-center gap-2" 
+                        id="receiver-tab" data-bs-toggle="pill" data-bs-target="#receiverSection" type="button" role="tab" aria-controls="receiverSection" aria-selected="{% if is_receiver %}true{% else %}false{% endif %}">
+                    <i class="bi bi-box2-heart me-1"></i> 2. Receiver Section (Food Deliveries)
+                    <span class="badge bg-primary text-white rounded-pill">{{ requests|length }} Deliveries</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="volunteerTabsContent">
+
+            <!-- ======================================================== -->
+            <!-- TAB PANE 1: DONOR SECTION (FOOD PICKUPS FROM DONORS)     -->
+            <!-- ======================================================== -->
+            <div class="tab-pane fade {% if not is_receiver %}show active{% endif %}" id="donorSection" role="tabpanel" aria-labelledby="donor-tab">
+                
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <div>
+                        <h3 class="text-success m-0 fw-bold"><i class="bi bi-truck me-2"></i>Donor Food Pickups</h3>
+                        <p class="text-muted mb-0 small">Collect food from donors in 3 stages: <b>Pending Pickup</b> &rarr; <b>Active Pickup</b> &rarr; <b>Complete Pickup</b>.</p>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-clock-history me-1"></i> {{ pending_count }} Pending Pickup
+                        </span>
+                        <span class="badge bg-primary text-white fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-truck me-1"></i> {{ active_count }} Active Pickup
+                        </span>
+                        <span class="badge bg-success text-white fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-check-circle-fill me-1"></i> {{ completed_count }} Complete Pickup
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 mb-4 rounded-4 overflow-hidden">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="m-0 fw-bold text-dark">Active & Pending Pickup Requests from Donors</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Food ID</th>
+                                        <th>Food & Quantity</th>
+                                        <th>Donor Name & Phone</th>
+                                        <th>Pickup Location</th>
+                                        <th>Current Status</th>
+                                        <th class="text-end pe-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if pickups %}
+                                        {% for item in pickups %}
+                                        <tr {% if item['status'] == 'Active Pickup' %}class="table-primary table-opacity-10"{% endif %}>
+                                            <td class="ps-4">
+                                                <span class="badge bg-dark fw-bold">#{{ item['food_code'] }}</span>
+                                            </td>
+                                            <td>
+                                                <b class="text-dark">{{ item['food_name'] }}</b><br>
+                                                <span class="badge bg-success-subtle text-success">Qty: {{ item['quantity'] }}</span>
+                                            </td>
+                                            <td>
+                                                <b>{{ item['seller_name'] }}</b>
+                                                {% if item['phone'] %}
+                                                    <br><small><a href="tel:{{ item['phone'] }}" class="text-decoration-none text-muted"><i class="bi bi-telephone text-secondary me-1"></i>{{ item['phone'] }}</a></small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div><b><i class="bi bi-geo-alt text-secondary me-1"></i>{{ item['location'] }}</b></div>
+                                                {% if item['latitude'] and item['longitude'] %}
+                                                    <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                            <i class="bi bi-geo me-1"></i>GPS: {{ "%.4f"|format(item['latitude']) }}, {{ "%.4f"|format(item['longitude']) }}
+                                                        </span>
+                                                        <a href="https://www.google.com/maps/dir/?api=1&destination={{ item['latitude'] }},{{ item['longitude'] }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold text-decoration-none shadow-sm" 
+                                                            title="Open Google Maps Turn-by-Turn GPS Navigation">
+                                                            <i class="bi bi-compass me-1"></i>Track / Navigate
+                                                        </a>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-success py-0 px-2 fw-semibold shadow-sm" 
+                                                                onclick="openInteractiveMap('Donor Pickup: {{ item['food_name']|escape }}', '{{ item['seller_name']|escape }}', '{{ item['location']|escape }}', {{ item['latitude'] }}, {{ item['longitude'] }})">
+                                                            <i class="bi bi-map me-1"></i>Map View
+                                                        </button>
+                                                    </div>
+                                                {% elif item['location'] %}
+                                                    <div class="mt-1">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query={{ item['location']|urlencode }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none shadow-sm" 
+                                                            title="Search location on Google Maps">
+                                                            <i class="bi bi-search me-1"></i>Search on Map
+                                                        </a>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                                    <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                                                        <i class="bi bi-clock-history me-1"></i>Pending Pickup
+                                                    </span>
+                                                {% elif item['status'] == 'Active Pickup' %}
+                                                    <span class="badge bg-primary text-white px-3 py-2 fs-6">
+                                                        <i class="bi bi-truck me-1"></i>Active Pickup
+                                                    </span>
+                                                    {% if item['picked_up_by'] %}
+                                                        <div class="small text-muted mt-1">Assigned: <b>{{ item['picked_up_by'] }}</b></div>
+                                                    {% endif %}
+                                                {% elif item['status'] in ['Complete Pickup', 'Available'] %}
+                                                    <span class="badge bg-success text-white px-3 py-2 fs-6">
+                                                        <i class="bi bi-check-circle-fill me-1"></i>Complete Pickup
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                {% if item['status'] in ['Pending Pickup', 'Awaiting Pickup'] %}
+                                                    <div class="d-inline-flex gap-1 align-items-center">
+                                                        <a href="/volunteer/start_pickup/{{ item['id'] }}" class="btn btn-primary btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                            <i class="bi bi-bicycle me-1"></i> Start Pickup
+                                                        </a>
+                                                        <a href="/volunteer/complete_pickup/{{ item['id'] }}" class="btn btn-outline-success btn-sm fw-semibold" title="Directly complete pickup">
+                                                            Direct Complete
+                                                        </a>
+                                                    </div>
+                                                {% elif item['status'] == 'Active Pickup' %}
+                                                    <div class="d-inline-flex gap-1 align-items-center">
+                                                        <a href="/volunteer/complete_pickup/{{ item['id'] }}" class="btn btn-success btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                            <i class="bi bi-check-circle-fill me-1"></i> Complete Pickup
+                                                        </a>
+                                                        <a href="/volunteer/cancel_pickup/{{ item['id'] }}" class="btn btn-outline-secondary btn-sm" title="Cancel & reset to Pending">
+                                                            Cancel
+                                                        </a>
+                                                    </div>
+                                                {% else %}
+                                                    <span class="badge bg-success-subtle text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Complete</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                No pending or active pickup requests right now. Newly donated food will appear here instantly!
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recently Completed Pickups Section -->
+                {% if completed_pickups %}
+                <div class="card shadow-sm border-0 mb-4 rounded-4 overflow-hidden">
+                    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-success small">
+                            <i class="bi bi-check-circle-fill me-1"></i> Completed Pickups History (Added to Live Inventory)
+                        </span>
+                        <span class="badge bg-success">{{ completed_pickups|length }} Completed</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Food ID</th>
+                                        <th>Food Name</th>
+                                        <th>Quantity Stocked</th>
+                                        <th>Donor</th>
+                                        <th>Picked Up By</th>
+                                        <th>Completed Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in completed_pickups %}
+                                    <tr>
+                                        <td class="ps-4"><span class="badge bg-dark">#{{ item['food_code'] }}</span></td>
+                                        <td><b>{{ item['food_name'] }}</b></td>
+                                        <td><span class="badge bg-success-subtle text-success">{{ item['available_quantity'] }} {{ item['unit'] }} in stock</span></td>
+                                        <td>{{ item['seller_name'] }}</td>
+                                        <td>{{ item['picked_up_by'] or 'Volunteer' }}</td>
+                                        <td><span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Complete Pickup</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- ========================================================== -->
+            <!-- TAB PANE 2: RECEIVER SECTION (DELIVERIES TO BENEFICIARIES) -->
+            <!-- ========================================================== -->
+            <div class="tab-pane fade {% if is_receiver %}show active{% endif %}" id="receiverSection" role="tabpanel" aria-labelledby="receiver-tab">
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <div>
+                        <h3 class="text-primary m-0 fw-bold"><i class="bi bi-box2-heart me-2"></i>Receiver Food Deliveries</h3>
+                        <p class="text-muted mb-0 small">Review requested meals from beneficiaries and deliver them safely to destination addresses.</p>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-clock-history me-1"></i> {{ pending_delivery_count }} Pending Delivery
+                        </span>
+                        <span class="badge bg-primary text-white fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-truck me-1"></i> {{ active_delivery_count }} Active on Route
+                        </span>
+                        <span class="badge bg-success text-white fs-6 px-3 py-2 rounded-pill">
+                            <i class="bi bi-check-circle-fill me-1"></i> {{ delivered_count }} Delivered
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 mb-4 rounded-4 overflow-hidden">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="m-0 fw-bold text-dark">Live Receiver Orders & Delivery Tasks</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Request ID</th>
+                                        <th>Requester Name & Phone</th>
+                                        <th>Food Item & Quantity</th>
+                                        <th>Delivery Address</th>
+                                        <th>Delivery Status</th>
+                                        <th class="text-end pe-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if requests %}
+                                        {% for req in requests %}
+                                        <tr>
+                                            <td class="ps-4">
+                                                <span class="badge bg-dark fw-bold">#REQ-{{ 1000 + req['id'] }}</span>
+                                                {% if req['food_code'] %}
+                                                    <div><small class="text-muted">Food: {{ req['food_code'] }}</small></div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <b class="text-dark">{{ req['name'] or req['user_name'] }}</b>
+                                                {% if req['phone'] %}
+                                                    <br><small><a href="tel:{{ req['phone'] }}" class="text-decoration-none text-muted"><i class="bi bi-telephone text-secondary me-1"></i>{{ req['phone'] }}</a></small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <b class="text-dark">{{ req['food_name'] or req['user_name'] }}</b>
+                                                {% if req['quantity'] %}
+                                                    <br><span class="badge bg-secondary-subtle text-dark">Qty: {{ req['quantity'] }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="fw-semibold"><i class="bi bi-geo-alt text-secondary me-1"></i>{{ req['address'] or 'N/A' }}</div>
+                                                {% if req['latitude'] and req['longitude'] %}
+                                                    <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                            <i class="bi bi-geo me-1"></i>GPS: {{ "%.4f"|format(req['latitude']) }}, {{ "%.4f"|format(req['longitude']) }}
+                                                        </span>
+                                                        <a href="https://www.google.com/maps/dir/?api=1&destination={{ req['latitude'] }},{{ req['longitude'] }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold text-decoration-none shadow-sm" 
+                                                            title="Open Google Maps Turn-by-Turn GPS Navigation">
+                                                            <i class="bi bi-compass me-1"></i>Track / Navigate
+                                                        </a>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-success py-0 px-2 fw-semibold shadow-sm" 
+                                                                onclick="openInteractiveMap('Receiver Delivery: {{ req['food_name']|escape }}', '{{ (req['name'] or req['user_name'])|escape }}', '{{ req['address']|escape }}', {{ req['latitude'] }}, {{ req['longitude'] }})">
+                                                            <i class="bi bi-map me-1"></i>Map View
+                                                        </button>
+                                                    </div>
+                                                {% elif req['address'] %}
+                                                    <div class="mt-1">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query={{ req['address']|urlencode }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-outline-secondary py-0 px-2 text-decoration-none shadow-sm" 
+                                                            title="Search destination on Google Maps">
+                                                            <i class="bi bi-search me-1"></i>Search on Map
+                                                        </a>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if req['status'] == 'Delivered' %}
+                                                    <span class="badge bg-success text-white px-3 py-2 fs-6">
+                                                        <i class="bi bi-check-circle-fill me-1"></i>Delivered
+                                                    </span>
+                                                {% elif req['status'] in ['Food Picked Up', 'Picked Up'] %}
+                                                    <span class="badge bg-primary text-white px-3 py-2 fs-6">
+                                                        <i class="bi bi-truck me-1"></i>On Delivery Route
+                                                    </span>
+                                                {% elif req['status'] == 'Accepted' %}
+                                                    <span class="badge bg-info text-dark px-3 py-2 fs-6">
+                                                        <i class="bi bi-person-check-fill me-1"></i>Volunteer Accepted
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                                                        <i class="bi bi-clock-history me-1"></i>Pending Volunteer
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                {% if req['status'] == 'Pending' %}
+                                                    <a href="/update_request/{{ req['id'] }}/Accepted?tab=receiver" class="btn btn-info btn-sm text-white fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-person-check-fill me-1"></i> Accept Delivery
+                                                    </a>
+                                                {% elif req['status'] == 'Accepted' %}
+                                                    <a href="/update_request/{{ req['id'] }}/Food Picked Up?tab=receiver" class="btn btn-primary btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-truck me-1"></i> Pick Up & Start Route
+                                                    </a>
+                                                {% elif req['status'] in ['Food Picked Up', 'Picked Up'] %}
+                                                    <a href="/update_request/{{ req['id'] }}/Delivered?tab=receiver" class="btn btn-success btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                        <i class="bi bi-check-circle-fill me-1"></i> Mark Delivered
+                                                    </a>
+                                                {% else %}
+                                                    <span class="badge bg-success-subtle text-success fw-bold px-3 py-2">
+                                                        <i class="bi bi-check-circle-fill me-1"></i>Completed
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                No food delivery requests placed by receivers yet.
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+    <!-- ======================================================== -->
+    <!-- STATE 2: Application is Pending Admin Approval          -->
+    <!-- ======================================================== -->
+    {% elif my_vol and my_vol['status'] == 'Pending Approval' %}
+
+        <div class="card shadow-sm border-0 p-4 p-md-5 text-center mb-5 bg-warning-subtle border-start border-4 border-warning">
+            <div class="display-3 mb-2 text-warning"><i class="bi bi-clock-history"></i></div>
+            <h3 class="fw-bold text-dark mb-2">Your Volunteer Application is Under Review</h3>
+            <p class="text-muted fs-5 mx-auto" style="max-width: 650px;">
+                Thank you, <b>{{ my_vol['name'] }}</b>! Your registration for <b>{{ my_vol['area'] }}</b> has been submitted to the <b>Administrator</b>.
+            </p>
+            <div class="d-inline-flex flex-wrap gap-3 justify-content-center p-3 bg-white rounded-3 shadow-sm mx-auto mb-4">
+                <span><i class="bi bi-envelope text-secondary me-1"></i>Notification to: <b>{{ my_vol['email'] }}</b></span>
+                <span><i class="bi bi-telephone text-secondary me-1"></i>Phone: <b>{{ my_vol['phone'] }}</b></span>
+                <span><i class="bi bi-geo-alt text-secondary me-1"></i>Area: <b>{{ my_vol['area'] }}</b></span>
+            </div>
+            <p class="text-muted mb-4">
+                <i>As soon as the Admin approves your request, you will receive an official approval email and your delivery orders will unlock here!</i>
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="/" class="btn btn-outline-dark btn-sm">
+                    &larr; Back to Home
+                </a>
+                <a href="/volunteer_logout" class="btn btn-outline-secondary btn-sm">
+                    Sign Out
+                </a>
+            </div>
+        </div>
+
+    <!-- ======================================================== -->
+    <!-- STATE 3: Application Rejected                           -->
+    <!-- ======================================================== -->
+    {% elif my_vol and my_vol['status'] == 'Rejected' %}
+
+        <div class="card shadow-sm border-0 p-4 mb-4 border-start border-4 border-danger bg-danger-subtle text-center">
+            <h4 class="text-danger fw-bold">Application Status: Not Approved</h4>
+            <p class="text-muted mb-3">Volunteer slots in your area are currently full. You can re-apply or contact the administrator.</p>
+            <div>
+                <a href="/volunteer_logout" class="btn btn-danger btn-sm">Sign Out & Apply Again</a>
+            </div>
+        </div>
+
+    <!-- ======================================================== -->
+    <!-- STATE 4: Not Registered / Not Logged In -> AUTH SCREEN   -->
+    <!-- ======================================================== -->
+    {% else %}
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+
+                <div class="card shadow border-0 rounded-4 p-4 p-md-5">
+
+                    <!-- Tab Header: Register vs Login -->
+                    <ul class="nav nav-pills nav-fill mb-4 p-1 bg-light rounded-pill" id="volAuthTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active rounded-pill fw-bold py-2" id="register-tab" data-bs-toggle="pill" data-bs-target="#register-pane" type="button" role="tab">
+                                <i class="bi bi-file-earmark-text me-1"></i> Apply / Register as Volunteer
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link rounded-pill fw-bold py-2 text-dark" id="login-tab" data-bs-toggle="pill" data-bs-target="#login-pane" type="button" role="tab">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Existing Volunteer Login
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="volAuthTabContent">
+
+                        <!-- TAB 1: REGISTRATION / REQUEST TO ADMIN -->
+                        <div class="tab-pane fade show active" id="register-pane" role="tabpanel">
+
+                            <div class="text-center mb-4">
+                                <h3 class="fw-bold text-dark">Volunteer Application Form</h3>
+                                <p class="text-muted small">
+                                    Fill in your details below to submit your volunteer request to the Administrator for approval.
+                                </p>
+                            </div>
+
+                            <form action="/volunteer" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Full Name</label>
+                                    <input type="text" class="form-control" name="name" placeholder="e.g. Rahul Sharma" required>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-semibold">Email Address (for approval notification)</label>
+                                        <input type="email" class="form-control" name="email" placeholder="rahul@example.com" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-semibold">Phone Number</label>
+                                        <input type="tel" class="form-control" name="phone" placeholder="9876543210" required>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Preferred Delivery Area / Neighborhood</label>
+                                    <input type="text" class="form-control" name="area" placeholder="e.g. Nikol, Bapunagar, Downtown" required>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-semibold">Available Hours / Schedule</label>
+                                        <input type="text" class="form-control" name="time" placeholder="e.g. Evenings (6 PM - 9 PM)">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-semibold">Create Password</label>
+                                        <input type="password" class="form-control" name="password" placeholder="At least 6 characters" required>
+                                    </div>
+                                </div>
+
+                                <div class="p-3 bg-light rounded-3 mb-4 border">
+                                    <small class="text-muted d-block">
+                                        <b><i class="bi bi-info-circle text-primary me-1"></i>How Approval Works:</b> When you submit this form, your request is sent to the <b>Administrator</b>. Once approved, you will receive an official approval email and can start claiming food delivery orders!
+                                    </small>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button class="btn btn-warning btn-lg fw-bold text-dark shadow-sm" type="submit">
+                                        Submit Request to Admin &rarr;
+                                    </button>
+                                </div>
+                            </form>
+
+                        </div>
+
+                        <!-- TAB 2: LOGIN FOR EXISTING VOLUNTEER -->
+                        <div class="tab-pane fade" id="login-pane" role="tabpanel">
+
+                            <div class="text-center mb-4">
+                                <h3 class="fw-bold text-dark">Volunteer Sign In</h3>
+                                <p class="text-muted small">
+                                    Already registered and approved? Sign in to view and accept delivery orders.
+                                </p>
+                            </div>
+
+                            <form action="/volunteer_login" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Email Address</label>
+                                    <input type="email" class="form-control" name="email" placeholder="volunteer@annapath.com" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Password</label>
+                                    <input type="password" class="form-control" name="password" placeholder="Enter password" required>
+                                </div>
+
+                                <div class="d-grid mt-4">
+                                    <button class="btn btn-success btn-lg fw-bold" type="submit">
+                                        Sign In as Volunteer &rarr;
+                                    </button>
+                                </div>
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    {% endif %}
+
+</div>
+
+<!-- Interactive Location Map Modal for Volunteers -->
+<div class="modal fade" id="volunteerMapModal" tabindex="-1" aria-labelledby="volunteerMapModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold" id="volunteerMapModalLabel">
+                    <i class="bi bi-geo-alt-fill me-2"></i>Live Location Tracking & Navigation
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-light border-bottom">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark" id="modalMapTitle">Location Details</h6>
+                            <small class="text-muted" id="modalMapSubtitle"></small>
+                        </div>
+                        <a id="modalDirectionsBtn" href="#" target="_blank" class="btn btn-primary fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                            <i class="bi bi-compass me-1"></i> Open GPS Directions (Google Maps) &rarr;
+                        </a>
+                    </div>
+                </div>
+                <div id="interactiveVolunteerMap" style="height: 380px; width: 100%;"></div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <span class="small text-muted me-auto" id="modalCoordinatesText"></span>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+let leafletMapInstance = null;
+let currentMarker = null;
+
+function openInteractiveMap(title, contactPerson, address, lat, lng) {
+    document.getElementById('modalMapTitle').innerText = title;
+    document.getElementById('modalMapSubtitle').innerText = `${contactPerson} • ${address}`;
+    document.getElementById('modalCoordinatesText').innerText = `GPS Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    document.getElementById('modalDirectionsBtn').href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+    const modalEl = document.getElementById('volunteerMapModal');
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+
+    setTimeout(function() {
+        if (!leafletMapInstance) {
+            leafletMapInstance = L.map('interactiveVolunteerMap').setView([lat, lng], 15);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(leafletMapInstance);
+        } else {
+            leafletMapInstance.setView([lat, lng], 15);
+            leafletMapInstance.invalidateSize();
+        }
+
+        if (currentMarker) {
+            leafletMapInstance.removeLayer(currentMarker);
+        }
+
+        currentMarker = L.marker([lat, lng]).addTo(leafletMapInstance)
+            .bindPopup(`<b>${title}</b><br>${contactPerson}<br><small>${address}</small>`)
+            .openPopup();
+    }, 300);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const donorTabBtn = document.getElementById('donor-tab');
+    const receiverTabBtn = document.getElementById('receiver-tab');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const hash = window.location.hash;
+    const storedTab = sessionStorage.getItem('annapath_active_vol_tab');
+
+    // 1. Determine active tab on page load
+    if (tabParam === 'receiver' || hash === '#receiverSection' || (storedTab === 'receiver' && tabParam !== 'donor' && hash !== '#donorSection')) {
+        if (receiverTabBtn && typeof bootstrap !== 'undefined') {
+            bootstrap.Tab.getOrCreateInstance(receiverTabBtn).show();
+        }
+    } else if (tabParam === 'donor' || hash === '#donorSection') {
+        if (donorTabBtn && typeof bootstrap !== 'undefined') {
+            bootstrap.Tab.getOrCreateInstance(donorTabBtn).show();
+        }
+    }
+
+    // 2. Persist tab selection in sessionStorage & sync URL
+    if (donorTabBtn) {
+        donorTabBtn.addEventListener('shown.bs.tab', function () {
+            sessionStorage.setItem('annapath_active_vol_tab', 'donor');
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('tab', 'donor');
+            newUrl.hash = 'donorSection';
+            window.history.replaceState({}, '', newUrl);
+        });
+    }
+
+    if (receiverTabBtn) {
+        receiverTabBtn.addEventListener('shown.bs.tab', function () {
+            sessionStorage.setItem('annapath_active_vol_tab', 'receiver');
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('tab', 'receiver');
+            newUrl.hash = 'receiverSection';
+            window.history.replaceState({}, '', newUrl);
+        });
+    }
+});
+</script>
+
+{% endblock %}

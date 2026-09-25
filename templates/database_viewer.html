@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-success m-0">Database Viewer (food.db)</h2>
+            <p class="text-muted mb-0">Browse all tables and records directly from your website</p>
+        </div>
+        <span class="badge bg-secondary fs-6">SQLite3</span>
+    </div>
+
+    <!-- Table Selection Navigation Tabs -->
+    <ul class="nav nav-pills mb-4 gap-2">
+        {% for tbl in tables %}
+            <li class="nav-item">
+                <a class="nav-link {% if tbl == selected_table %}active bg-success{% else %}bg-white text-dark shadow-sm{% endif %}"
+                   href="/database?table={{ tbl }}">
+                    <b>{{ tbl }}</b>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Table Data Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-success">
+                Table: <b>{{ selected_table }}</b>
+                <span class="badge bg-light text-muted border ms-2">{{ rows|length }} records</span>
+            </h5>
+            <div class="d-flex gap-2">
+                <input type="text" id="dbSearch" class="form-control form-control-sm" placeholder="Search table..." onkeyup="filterDbTable()">
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            {% if columns %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" id="recordsTable">
+                        <thead class="table-light">
+                            <tr>
+                                {% for col in columns %}
+                                    <th class="py-3 px-3">{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if rows %}
+                                {% for row in rows %}
+                                    <tr>
+                                        {% for col in columns %}
+                                            <td class="px-3 py-2 align-middle">
+                                                {% if col == 'image' and row[col] %}
+                                                    <a href="{{ url_for('static', filename='images/' + row[col]) }}" target="_blank">
+                                                        <img src="{{ url_for('static', filename='images/' + row[col]) }}" height="40" class="rounded border">
+                                                    </a>
+                                                {% else %}
+                                                    {{ row[col] if row[col] is not none else '<span class="text-muted">NULL</span>'|safe }}
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="{{ columns|length }}" class="text-center py-4 text-muted">
+                                        No records in table <b>{{ selected_table }}</b>.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="p-4 text-center text-muted">
+                    No table selected or table has no columns.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+function filterDbTable() {
+    let input = document.getElementById("dbSearch").value.toLowerCase();
+    let rows = document.querySelectorAll("#recordsTable tbody tr");
+    rows.forEach(row => {
+        let text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? "" : "none";
+    });
+}
+</script>
+
+{% endblock %}

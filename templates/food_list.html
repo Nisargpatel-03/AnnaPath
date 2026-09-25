@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h2 class="text-success m-0 fw-bolder" style="letter-spacing: -0.025em;">
+                    <i class="bi bi-box-seam me-2"></i>Live Available Food Inventory
+                </h2>
+            </div>
+            <p class="text-muted mb-0 small">Real-time inventory stock across the AnnaPath network, verified and ready for distribution.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if session.get('role') == 'Donor' %}
+                <a href="/donor" class="btn btn-outline-secondary fw-semibold">
+                    <i class="bi bi-arrow-left"></i> Back to Donor Portal
+                </a>
+                <a href="/add_food" class="btn btn-success fw-bold shadow-sm">
+                    + Donate More Food
+                </a>
+            {% elif session.get('role') == 'Receiver' %}
+                <a href="/receiver" class="btn btn-outline-secondary fw-semibold">
+                    <i class="bi bi-arrow-left"></i> Receiver Dashboard
+                </a>
+            {% endif %}
+            <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">
+                {{ foods|length }} Available in Inventory
+            </span>
+        </div>
+    </div>
+
+    <!-- Search Input & Quick Help -->
+    <div class="card shadow-sm border-0 mb-4 p-2" style="border-radius: var(--radius-xl);">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-0 fs-5 text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text"
+                   id="search"
+                   class="form-control border-0 shadow-none fs-6"
+                   placeholder="Search available food by title, food code (#...), donor name, or location..."
+                   onkeyup="searchFood()">
+        </div>
+    </div>
+
+    <!-- Food Cards Grid -->
+    <div class="row g-4" id="foodGrid">
+
+        {% if foods %}
+            {% for food in foods %}
+            <div class="col-lg-4 col-md-6 food-card">
+                <div class="card h-100 shadow-sm border-0 overflow-hidden" style="border-radius: var(--radius-xl);">
+
+                    {% if food['image'] %}
+                        <img src="{{ url_for('static', filename='images/' + food['image']) }}"
+                             class="card-img-top object-fit-cover"
+                             style="height: 220px;"
+                             alt="{{ food['food_name'] }}">
+                    {% else %}
+                        <div class="bg-success-subtle d-flex align-items-center justify-content-center text-success"
+                             style="height: 200px; font-size: 56px;">
+                            <i class="bi bi-basket2"></i>
+                        </div>
+                    {% endif %}
+
+                    <div class="card-body p-4 d-flex flex-column">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-dark fw-bold fs-6">#{{ food['food_code'] }}</span>
+                            <span class="badge {% if food['food_type'] == 'Donate' %}bg-success-subtle text-success{% else %}bg-secondary{% endif %}">
+                                {% if food['food_type'] == 'Donate' %}Free Donation{% else %}₹{{ food['price'] }}{% endif %}
+                            </span>
+                        </div>
+
+                        <h4 class="card-title fw-bold text-dark mb-2">
+                            {{ food['food_name'] }}
+                        </h4>
+
+                        <div class="small text-muted mb-3">
+                            <div class="d-flex align-items-center gap-1 mb-1">
+                                <i class="bi bi-person text-secondary"></i>
+                                <span><b>Donor:</b> {{ food['seller_name'] }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="bi bi-geo-alt text-secondary"></i>
+                                <span><b>Location:</b> {{ food['location'] }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Real-Time Live Stock Box -->
+                        <div class="bg-success-subtle border border-success-subtle rounded-3 p-3 text-center mb-3 mt-auto">
+                            <span class="text-success-emphasis small fw-bold text-uppercase d-block mb-1">
+                                Available Live Stock
+                            </span>
+                            <span class="fs-3 fw-bolder text-success d-inline-flex align-items-center justify-content-center gap-2">
+                                <i class="bi bi-circle-fill text-success" style="font-size: 0.85rem;"></i> {{ food['available_quantity'] }} <small class="fs-6 fw-normal text-muted">{{ food['unit'] }}</small>
+                            </span>
+                        </div>
+
+                        <!-- Action Button / Role Specific View -->
+                        {% if session.get('role') == 'Donor' %}
+                            <div class="d-flex flex-column gap-1">
+                                <span class="btn btn-outline-success btn-lg fw-bold w-100 disabled border-success text-success" style="opacity: 0.95;">
+                                    <i class="bi bi-check-circle-fill"></i> In Live Stock
+                                </span>
+                                <small class="text-center text-muted" style="font-size: 0.785rem;">Available for food receivers to claim</small>
+                            </div>
+                        {% elif food['available_quantity'] > 0 %}
+                            <a href="/request_food?food_id={{ food['id'] }}" class="btn btn-success btn-lg fw-bold shadow-sm">
+                                <span>Request Food</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        {% else %}
+                            <button class="btn btn-secondary btn-lg fw-bold" disabled>
+                                Out of Stock
+                            </button>
+                        {% endif %}
+
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card shadow-sm border-0 p-5 text-center bg-light rounded-4">
+                    <div class="display-3 mb-2 text-muted"><i class="bi bi-inbox"></i></div>
+                    <h3 class="fw-bold text-dark mb-1">No Food in Live Inventory Right Now</h3>
+                    <p class="text-muted mb-3">All listed items have been claimed or are awaiting volunteer pickup.</p>
+                    {% if session.get('role') == 'Donor' %}
+                        <div>
+                            <a href="/add_food" class="btn btn-success fw-bold">
+                                + Donate Food Now
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+
+</div>
+
+<script>
+function searchFood() {
+    let input = document.getElementById('search').value.toLowerCase();
+    let cards = document.querySelectorAll('.food-card');
+
+    cards.forEach(card => {
+        let text = card.innerText.toLowerCase();
+        if (text.includes(input)) {
+            card.style.display = "";
+        } else {
+            card.style.display = "none";
+        }
+    });
+}
+</script>
+
+{% endblock %}
