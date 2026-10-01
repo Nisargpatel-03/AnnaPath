@@ -116,9 +116,11 @@
                                 </td>
                                 <td>
                                     <div class="d-inline-flex align-items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm">
-                                        <code class="fw-bold text-dark font-monospace" id="pwdVal{{ vol['id'] }}">••••••</code>
+                                        <code class="fw-bold text-dark font-monospace" id="pwdVal{{ vol.id }}">••••••</code>
                                         <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary" 
-                                                onclick="const el = document.getElementById('pwdVal{{ vol['id'] }}'); const ic = this.querySelector('i'); if(el.innerText === '••••••'){ el.innerText = '{{ vol['password'] }}'; ic.className = 'bi bi-eye-slash'; } else { el.innerText = '••••••'; ic.className = 'bi bi-eye'; }" 
+                                                data-target="pwdVal{{ vol.id }}"
+                                                data-pwd="{{ vol.password }}"
+                                                onclick="togglePasswordVisibility(this)" 
                                                 title="Click to Reveal / Hide Password">
                                             <i class="bi bi-eye"></i>
                                         </button>
@@ -170,7 +172,7 @@
                                         </button>
 
                                         <!-- Remove Volunteer Button -->
-                                        <a href="/admin/volunteer/{{ vol['id'] }}/delete" class="btn btn-sm btn-outline-danger fw-semibold" onclick="return confirm('Are you sure you want to permanently remove volunteer \'{{ vol['name'] }}\'?');" title="Remove Volunteer">
+                                        <a href="/admin/volunteer/{{ vol.id }}/delete" class="btn btn-sm btn-outline-danger fw-semibold" onclick="return confirm('Are you sure you want to permanently remove this volunteer?');" title="Remove Volunteer">
                                             <i class="bi bi-trash3 me-1"></i>Remove
                                         </a>
                                     </div>
@@ -560,7 +562,7 @@
                                         </div>
 
                                         <!-- Delete Button -->
-                                        <a href="/admin/food/{{ item['id'] }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to permanently delete food item #{{ item['food_code'] }} ({{ item['food_name'] }}) from inventory?');" title="Delete Food Item">
+                                        <a href="/admin/food/{{ item.id }}/delete" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to permanently delete this food item from inventory?');" title="Delete Food Item">
                                             <i class="bi bi-trash3"></i>
                                         </a>
 
@@ -754,5 +756,22 @@
     </div>
 
 </div>
+
+<script>
+function togglePasswordVisibility(btn) {
+    const targetId = btn.getAttribute('data-target');
+    const pwd = btn.getAttribute('data-pwd');
+    const el = document.getElementById(targetId);
+    const ic = btn.querySelector('i');
+    if (!el) return;
+    if (el.innerText === '••••••') {
+        el.innerText = pwd;
+        if (ic) ic.className = 'bi bi-eye-slash';
+    } else {
+        el.innerText = '••••••';
+        if (ic) ic.className = 'bi bi-eye';
+    }
+}
+</script>
 
 {% endblock %}

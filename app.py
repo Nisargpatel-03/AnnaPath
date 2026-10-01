@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 import time
 import uuid
 import urllib.parse
+from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import config
@@ -14,6 +15,12 @@ import config
 app = Flask(__name__)
 app.config.from_object(config)
 app.secret_key = getattr(config, "SECRET_KEY", "annapath_secret_key")
+
+# --- Session / "Remember Me" Configuration ---
+app.config["SESSION_PERMANENT"] = True
+app.permanent_session_lifetime = timedelta(days=30)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 UPLOAD_FOLDER = os.path.join(app.root_path, "static", "images")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -165,12 +172,31 @@ def send_email_notification(to_email, subject, body_html, body_text=""):
     return status
 
 
+# --- Session Validation: verify session user still exists in DB ---
+
+@app.before_request
+def validate_session():
+    """On every request, verify the logged-in user still exists in the database.
+    If the user was deleted or the session is stale, clear it immediately."""
+    user_id = session.get("user_id")
+    if user_id:
+        try:
+            conn = get_db()
+            user = conn.execute("SELECT id, role FROM users WHERE id = ?", (user_id,)).fetchone()
+            conn.close()
+            if not user:
+                session.clear()
+        except Exception:
+            session.clear()
+
+
 # --- Authentication & Role Access Decorators ---
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("user_id"):
+            flash("Please sign in to continue.", "warning")
             return redirect(url_for("home"))
         return f(*args, **kwargs)
     return decorated_function
@@ -245,6 +271,15 @@ def register():
 
         conn = get_db()
         try:
+            # Check if email is already registered under any role
+            existing_user = conn.execute(
+                "SELECT role FROM users WHERE email = ?", (email,)
+            ).fetchone()
+            if existing_user:
+                flash("This email is already registered. Please sign in with your existing account.", "danger")
+                conn.close()
+                return render_template("register.html", selected_role=selected_role)
+
             conn.execute(
                 "INSERT INTO users (name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)",
                 (name, email, phone, password, role),
@@ -274,6 +309,7 @@ def register():
             user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
             if user:
                 session.clear()
+                session.permanent = True
                 session["user_id"] = user["id"]
                 session["user_name"] = user["name"] or "User"
                 session["role"] = user["role"]
@@ -294,7 +330,7 @@ def register():
             return redirect(url_for("home"))
 
         except sqlite3.IntegrityError:
-            flash("Email is already registered. Please sign in.", "warning")
+            flash("This email is already registered. Please sign in with your existing account.", "danger")
         finally:
             conn.close()
 
@@ -312,14 +348,15 @@ def login():
 
         conn = get_db()
         user = conn.execute(
-            "SELECT * FROM users WHERE email = ? AND password = ?",
-            (email, password),
+            "SELECT * FROM users WHERE email = ? AND password = ? AND role = ?",
+            (email, password, role),
         ).fetchone()
         conn.close()
 
         if user:
             # Valid credentials: clear previous session and authenticate
             session.clear()
+            session.permanent = True
             session["user_id"] = user["id"]
             session["user_name"] = user["name"] or "User"
             session["role"] = user["role"]
@@ -342,7 +379,7 @@ def login():
                 return redirect(url_for("admin"))
             return redirect(url_for("home"))
         else:
-            flash("Invalid email or password. Please try again.", "danger")
+            flash("Invalid credentials. Please try again.", "danger")
             return render_template("login.html", selected_role=role or selected_role, email=email)
 
     return render_template("login.html", selected_role=selected_role, email="")
@@ -357,8 +394,11 @@ def demo_login(role):
 @app.route("/logout")
 def logout():
     session.clear()
+    session.modified = True
     flash("You have been logged out successfully.", "info")
-    return redirect(url_for("home"))
+    response = redirect(url_for("home"))
+    response.delete_cookie(app.config.get("SESSION_COOKIE_NAME", "session"))
+    return response
 
 
 @app.route("/dashboard")
@@ -581,6 +621,8 @@ def request_food():
 # --- Role 3: Volunteer Partner Portal & Actions ---
 
 @app.route("/volunteer", methods=["GET", "POST"])
+@login_required
+@role_required("Volunteer")
 def volunteer():
     conn = get_db()
     user_email = session.get("email", "")
@@ -798,25 +840,21 @@ def volunteer_login():
 
     conn = get_db()
     user = conn.execute(
-        "SELECT * FROM users WHERE email = ? AND password = ? AND role IN ('Volunteer', 'Admin')",
+        "SELECT * FROM users WHERE email = ? AND password = ? AND role = 'Volunteer'",
         (email, password),
     ).fetchone()
 
     if user:
         session.clear()
+        session.permanent = True
         session["user_id"] = user["id"]
         session["user_name"] = user["name"] or "User"
         session["role"] = user["role"]
         session["email"] = user["email"]
         session["phone"] = user["phone"] if ("phone" in user.keys() and user["phone"]) else ""
-        flash(f"Welcome back, {user['name']}! Signed in as {user['role']} in Volunteer Portal.", "success")
+        flash(f"Welcome back, {user['name']}! Signed in as Volunteer.", "success")
     else:
-        # Check if user exists with any other role
-        any_user = conn.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password)).fetchone()
-        if any_user:
-            flash(f"Account found, but role is '{any_user['role']}', not 'Volunteer' or 'Admin'.", "warning")
-        else:
-            flash("Invalid email or password.", "danger")
+        flash("Invalid credentials. Please try again.", "danger")
 
     conn.close()
     return redirect(url_for("volunteer"))
@@ -825,8 +863,11 @@ def volunteer_login():
 @app.route("/volunteer_logout")
 def volunteer_logout():
     session.clear()
+    session.modified = True
     flash("Signed out of Volunteer Portal.", "info")
-    return redirect(url_for("volunteer"))
+    response = redirect(url_for("home"))
+    response.delete_cookie(app.config.get("SESSION_COOKIE_NAME", "session"))
+    return response
 
 
 @app.route("/admin/volunteer/<int:vol_id>/approve")
