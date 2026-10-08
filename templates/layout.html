@@ -255,5 +255,52 @@
 </script>
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
+
+<!-- Notification Toast Container -->
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 9999;">
+  </div>
+</div>
+
+<script>
+    function showNotificationToast(title, message) {
+        const container = document.getElementById('toastContainer');
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+            <div id="${toastId}" class="toast shadow-lg border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="15000">
+                <div class="toast-header text-white bg-success">
+                    <i class="bi bi-bell-fill me-2"></i>
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body fw-medium">
+                    ${message}
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', toastHTML);
+        const toastEl = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+        
+        toastEl.addEventListener('hidden.bs.toast', () => {
+            toastEl.remove();
+        });
+    }
+
+    // Poll for notifications every 8 seconds
+    setInterval(async () => {
+        try {
+            const res = await fetch('/api/notifications/poll');
+            const data = await res.json();
+            if (data.notifications && data.notifications.length > 0) {
+                data.notifications.forEach(n => {
+                    showNotificationToast(n.title, n.message);
+                });
+            }
+        } catch(e) {}
+    }, 8000);
+</script>
 </body>
+
 </html>

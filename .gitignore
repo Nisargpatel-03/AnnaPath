@@ -16,6 +16,11 @@ env/
 *.pre_cleanup_bak
 *.db-journal
 
+# Secrets & Firebase service accounts
+firebase-adminsdk.json
+firebase-debug.log
+*.log
+
 # OS files
 .DS_Store
 Thumbs.db

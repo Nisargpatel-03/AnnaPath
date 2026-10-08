@@ -33,23 +33,23 @@
             {% for item in foods %}
             <div class="col-lg-4 col-md-6">
                 <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
-                    <div class="card-body p-4 d-flex flex-column">
+                    {% if item['image'] %}
+<img src="{{ url_for('static', filename='images/' ~ item['image']) }}" class="card-img-top bg-light" alt="{{ item['food_name'] }}" style="height: 220px; object-fit: contain; width: 100%; padding: 0.5rem;">
+{% else %}
+<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px; width: 100%;">
+    <i class="bi bi-image text-muted" style="font-size: 3rem; opacity: 0.5;"></i>
+</div>
+{% endif %}
+<div class="card-body p-4 d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="badge bg-dark fw-bold">#{{ item['food_code'] }}</span>
                             <span class="badge bg-success-subtle text-success">Free Donation</span>
                         </div>
                         <h4 class="fw-bold text-dark mb-1">{{ item['food_name'] }}</h4>
-                        <div class="small text-muted mb-3">
-                            <div><i class="bi bi-person text-secondary me-1"></i><b>Donor:</b> {{ item['seller_name'] }}</div>
-                            <div><i class="bi bi-geo-alt text-secondary me-1"></i><b>Location:</b> {{ item['location'] }}</div>
-                        </div>
-
-                        <!-- Live Stock Badge -->
-                        <div class="bg-success-subtle border border-success-subtle rounded-3 p-2 text-center mb-3 mt-auto">
-                            <span class="text-success-emphasis small fw-bold d-block">Live Available Stock:</span>
-                            <span class="fs-4 fw-bold text-success d-inline-flex align-items-center justify-content-center gap-1">
-                                <i class="bi bi-circle-fill text-success" style="font-size: 0.75rem;"></i> {{ item['available_quantity'] }} {{ item['unit'] }}
-                            </span>
+                        <div class="small text-muted mb-3 mt-auto">
+                            <div class="mb-1"><i class="bi bi-person text-secondary me-2"></i><b>Donor:</b> {{ item['seller_name'] }}</div>
+                            <div class="mb-1"><i class="bi bi-geo-alt text-secondary me-2"></i><b>Location:</b> <span class="text-truncate d-inline-block align-bottom" style="max-width: 220px;" title="{{ item['location'] }}">{{ item['location'] }}</span></div>
+                            <div class="mb-1"><i class="bi bi-box-seam text-secondary me-2"></i><b>Live Stock:</b> <span class="text-success fw-bold">{{ item['available_quantity'] }} {{ item['unit'] }}</span></div>
                         </div>
 
                         <a href="/request_food?food_id={{ item['id'] }}" class="btn btn-primary fw-bold shadow-sm">

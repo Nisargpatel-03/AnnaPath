@@ -329,25 +329,51 @@
                                                     <span class="badge bg-info text-dark px-3 py-2 fs-6">
                                                         <i class="bi bi-person-check-fill me-1"></i>Volunteer Accepted
                                                     </span>
+                                                {% elif req['status'] in ['Rejected', 'Cancelled'] %}
+                                                    <span class="badge bg-danger text-white px-3 py-2 fs-6">
+                                                        <i class="bi bi-x-circle-fill me-1"></i>{{ req['status'] }}
+                                                    </span>
                                                 {% else %}
                                                     <span class="badge bg-warning text-dark px-3 py-2 fs-6">
                                                         <i class="bi bi-clock-history me-1"></i>Pending Volunteer
                                                     </span>
                                                 {% endif %}
+                                                {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}
+                                                    <div class="small text-muted mt-1">Volunteer: <b>{{ req['volunteer_name'] }}</b></div>
+                                                {% endif %}
                                             </td>
                                             <td class="text-end pe-4">
                                                 {% if req['status'] == 'Pending' %}
-                                                    <a href="/update_request/{{ req['id'] }}/Accepted?tab=receiver" class="btn btn-info btn-sm text-white fw-bold shadow-sm d-inline-flex align-items-center gap-1">
-                                                        <i class="bi bi-person-check-fill me-1"></i> Accept Delivery
-                                                    </a>
+                                                    <div class="d-inline-flex gap-1 align-items-center">
+                                                        <a href="/update_request/{{ req['id'] }}/Accepted?tab=receiver" class="btn btn-info btn-sm text-white fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                            <i class="bi bi-person-check-fill me-1"></i> Accept Delivery
+                                                        </a>
+                                                        <a href="/update_request/{{ req['id'] }}/Rejected?tab=receiver" class="btn btn-outline-danger btn-sm" title="Reject Request" onclick="return confirm('Are you sure you want to reject this request?');">
+                                                            Reject
+                                                        </a>
+                                                    </div>
                                                 {% elif req['status'] == 'Accepted' %}
-                                                    <a href="/update_request/{{ req['id'] }}/Food Picked Up?tab=receiver" class="btn btn-primary btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
-                                                        <i class="bi bi-truck me-1"></i> Pick Up & Start Route
-                                                    </a>
+                                                    <div class="d-inline-flex gap-1 align-items-center">
+                                                        <a href="/update_request/{{ req['id'] }}/Food Picked Up?tab=receiver" class="btn btn-primary btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                            <i class="bi bi-truck me-1"></i> Pick Up & Start Route
+                                                        </a>
+                                                        <a href="/update_request/{{ req['id'] }}/Pending?tab=receiver" class="btn btn-outline-secondary btn-sm" title="Release back to Pending">
+                                                            Cancel
+                                                        </a>
+                                                    </div>
                                                 {% elif req['status'] in ['Food Picked Up', 'Picked Up'] %}
-                                                    <a href="/update_request/{{ req['id'] }}/Delivered?tab=receiver" class="btn btn-success btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
-                                                        <i class="bi bi-check-circle-fill me-1"></i> Mark Delivered
-                                                    </a>
+                                                    <div class="d-inline-flex gap-1 align-items-center">
+                                                        <a href="/update_request/{{ req['id'] }}/Delivered?tab=receiver" class="btn btn-success btn-sm fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                            <i class="bi bi-check-circle-fill me-1"></i> Mark Delivered
+                                                        </a>
+                                                        <a href="/update_request/{{ req['id'] }}/Pending?tab=receiver" class="btn btn-outline-secondary btn-sm" title="Release back to Pending">
+                                                            Cancel
+                                                        </a>
+                                                    </div>
+                                                {% elif req['status'] in ['Rejected', 'Cancelled'] %}
+                                                    <span class="badge bg-danger-subtle text-danger fw-bold px-3 py-2">
+                                                        <i class="bi bi-x-circle-fill me-1"></i>{{ req['status'] }}
+                                                    </span>
                                                 {% else %}
                                                     <span class="badge bg-success-subtle text-success fw-bold px-3 py-2">
                                                         <i class="bi bi-check-circle-fill me-1"></i>Completed

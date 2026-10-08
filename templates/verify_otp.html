@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="card p-4 p-md-5 shadow-lg border-0" style="border-radius: var(--radius-2xl);">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="AnnaPath" height="72" class="mb-3 d-inline-block" style="max-width: 210px; object-fit: contain;">
+                    <h2 class="fw-bolder text-dark mt-1" style="letter-spacing: -0.025em;">Verify Your Email</h2>
+                    <p class="text-muted small mb-0">We sent a 6-digit OTP to <b>{{ email }}</b>.</p>
+                </div>
+
+                <form action="/verify_otp" method="POST">
+                    <div class="mb-4">
+                        <label class="form-label">Enter OTP</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="bi bi-shield-lock"></i>
+                            </span>
+                            <input type="text" class="form-control form-control-lg border-start-0 ps-0 text-center" name="otp" 
+                                   placeholder="XXXXXX" maxlength="6" pattern="\d{6}" required autofocus>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button class="btn btn-success btn-lg fw-bold" type="submit">
+                            <span>Verify & Complete Registration</span>
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="position-relative text-center my-4">
+                    <hr class="text-muted opacity-25">
+                    <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small" style="font-size: 0.8rem;">
+                        DIDN'T RECEIVE IT?
+                    </span>
+                </div>
+
+                <p class="text-center text-muted mb-0 small">
+                    <a href="/register?role={{ role }}" class="fw-bold text-success text-decoration-none ms-1">
+                        &larr; Go Back to Registration
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

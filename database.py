@@ -81,6 +81,19 @@ CREATE TABLE IF NOT EXISTS email_logs (
 )
 """)
 
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_email TEXT,
+    user_role TEXT,
+    title TEXT,
+    message TEXT,
+    is_read INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
 conn.commit()
 conn.close()
 

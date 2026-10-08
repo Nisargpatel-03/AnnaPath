@@ -11,61 +11,11 @@
             <p class="mb-0 opacity-75">Platform analytics, volunteer approvals, food request management, and database inspection.</p>
         </div>
         <div class="mt-3 mt-md-0 d-flex gap-2">
-            <a href="/database" class="btn btn-outline-light btn-lg">
-                Inspect Database
-            </a>
+            <!-- Removed Inspect Database Button -->
         </div>
     </div>
 
-    <!-- Stats Grid with Live Inventory KPI -->
-    <div class="row g-3 mb-4">
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100">
-                <span class="text-muted small fw-semibold">Total Users</span>
-                <h2 class="text-dark fw-bold mb-0">{{ users_count if users_count is defined else 0 }}</h2>
-            </div>
-        </div>
-
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100 bg-success-subtle border-success-subtle">
-                <span class="text-success-emphasis small fw-bold">Live In-Stock</span>
-                <h2 class="text-success fw-bold mb-0"><i class="bi bi-circle-fill fs-5 me-1 text-success align-middle"></i>{{ total_live_stock if total_live_stock is defined else 0 }}</h2>
-            </div>
-        </div>
-
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100">
-                <span class="text-muted small fw-semibold">Claimed Units</span>
-                <h2 class="text-secondary fw-bold mb-0">{{ total_claimed_stock if total_claimed_stock is defined else 0 }}</h2>
-            </div>
-        </div>
-
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100">
-                <span class="text-muted small fw-semibold">Food Listings</span>
-                <h2 class="text-primary fw-bold mb-0">{{ food_count if food_count is defined else 0 }}</h2>
-            </div>
-        </div>
-
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100">
-                <span class="text-muted small fw-semibold">Food Requests</span>
-                <h2 class="text-primary fw-bold mb-0">{{ requests_count if requests_count is defined else 0 }}</h2>
-            </div>
-        </div>
-
-        <div class="col-lg-2 col-md-4 col-6">
-            <div class="card p-3 text-center shadow-sm h-100 {% if pending_volunteers_count and pending_volunteers_count > 0 %}border border-warning border-2{% endif %}">
-                <span class="text-muted small fw-semibold">Volunteers</span>
-                <h2 class="text-dark fw-bold mb-0">{{ volunteer_count if volunteer_count is defined else 0 }}</h2>
-                {% if pending_volunteers_count and pending_volunteers_count > 0 %}
-                    <span class="badge bg-warning text-dark">{{ pending_volunteers_count }} Pending</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <hr class="my-5">
+    <!-- Stats Grid Removed -->
 
     <!-- Volunteers Management Section with Approval & Email Dispatch -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2" id="volunteersSection">
@@ -340,52 +290,7 @@
         </div>
     </div>
 
-    <!-- Email Notifications Log -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3 class="text-success m-0 fw-bold">Recent Email Notifications Dispatched</h3>
-            <p class="text-muted mb-0 small">Automatic emails triggered by system approvals and volunteer updates.</p>
-        </div>
-        <span class="badge bg-secondary">System Audit</span>
-    </div>
-
-    <div class="card shadow-sm border-0 mb-5">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Recipient Email</th>
-                            <th>Subject</th>
-                            <th>Sent Timestamp</th>
-                            <th>Delivery Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if email_logs %}
-                            {% for log in email_logs %}
-                            <tr>
-                                <td class="ps-4"><b>{{ log['recipient'] }}</b></td>
-                                <td>{{ log['subject'] }}</td>
-                                <td><small class="text-muted">{{ log['sent_at'] }}</small></td>
-                                <td>
-                                    <span class="badge {% if 'SMTP' in log['status'] %}bg-success{% elif 'Error' in log['status'] %}bg-danger{% else %}bg-info text-dark{% endif %}">
-                                        {{ log['status'] }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">No emails logged yet. When you approve a volunteer, the email will appear here!</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
+    <!-- Email Notifications Log Removed -->
     <!-- Food Requests Section -->
     <h3 class="text-success mb-3 fw-bold">
         Manage Food Requests

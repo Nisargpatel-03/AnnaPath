@@ -48,8 +48,27 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Quantity</label>
-                        <input type="text" class="form-control" name="quantity" placeholder="e.g. 30 roti, 25 packets, 10 plates" required>
+                        <label class="form-label fw-semibold">Quantity & Unit</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="qty_num" placeholder="e.g. 30" min="1" required>
+                            <select class="form-select text-secondary fw-semibold bg-light" id="qty_unit" style="max-width: 130px;">
+                                <option value="Items">Items</option>
+                                <option value="Kg">Kg</option>
+                                <option value="gm">gm</option>
+                                <option value="Liter">Liter</option>
+                                <option value="ml">ml</option>
+                                <option value="Plates">Plates</option>
+                                <option value="Packets">Packets</option>
+                            </select>
+                        </div>
+                        <input type="hidden" name="quantity" id="real_quantity">
+                        <script>
+                            document.querySelector('form').addEventListener('submit', function() {
+                                document.getElementById('real_quantity').value = 
+                                    document.getElementById('qty_num').value + ' ' + 
+                                    document.getElementById('qty_unit').value;
+                            });
+                        </script>
                     </div>
 
                     <div class="mb-3">
