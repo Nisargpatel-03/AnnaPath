@@ -37,6 +37,9 @@
                                 </h4>
                                 <div class="text-muted small">
                                     <b>Request ID:</b> #REQ-{{ 1000 + req['id'] }}
+                                    {% if req['created_at'] %}
+                                        &bull; <i class="bi bi-clock-history me-1"></i>{{ req['created_at'] }}
+                                    {% endif %}
                                 </div>
                             </div>
                             <div id="status-badge-container-{{ req['id'] }}">
@@ -91,6 +94,54 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Assigned Volunteer Contact & Details Card -->
+                        <div id="volunteer-card-{{ req['id'] }}" class="p-3 mb-3 rounded-3 border {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}bg-success-subtle border-success-subtle shadow-sm{% else %}bg-light border-light-subtle{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold small {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}text-success-emphasis{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-person-badge-fill me-1"></i> Assigned Volunteer Contact
+                                </span>
+                                {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}
+                                    <span class="badge bg-success text-white">Active Assignment</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-muted">Awaiting Volunteer</span>
+                                {% endif %}
+                            </div>
+
+                            {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <h5 class="fw-bold text-dark mb-0">{{ req['volunteer_name'] }}</h5>
+                                        {% if req['volunteer_phone'] %}
+                                            <div class="small text-muted mt-1">
+                                                <i class="bi bi-telephone-fill text-success me-1"></i>
+                                                <a href="tel:{{ req['volunteer_phone'] }}" class="fw-bold text-decoration-none text-primary">{{ req['volunteer_phone'] }}</a>
+                                            </div>
+                                        {% endif %}
+                                        {% if req['volunteer_email'] %}
+                                            <div class="small text-muted">
+                                                <i class="bi bi-envelope-fill text-secondary me-1"></i>{{ req['volunteer_email'] }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if req['volunteer_phone'] %}
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <a href="tel:{{ req['volunteer_phone'] }}" class="btn btn-sm btn-success fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                <i class="bi bi-telephone-fill"></i> Call Volunteer
+                                            </a>
+                                            <a href="https://wa.me/{{ req['volunteer_phone']|replace(' ', '')|replace('+', '')|replace('-', '') }}" target="_blank" class="btn btn-sm btn-outline-success fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                                <i class="bi bi-whatsapp"></i> WhatsApp Chat
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <div class="small text-muted d-flex align-items-center gap-2">
+                                    <i class="bi bi-info-circle text-secondary"></i>
+                                    <span>A volunteer will be assigned shortly. Contact details will appear here once accepted.</span>
+                                </div>
+                            {% endif %}
                         </div>
 
                         <!-- Live Visual Progress Bar -->
@@ -193,7 +244,66 @@
 <!-- Client-Side Live Status Controller & Auto-Polling Script -->
 <script>
 // UI Transition Handler for Real-Time Updates
-function applyLiveStatusUI(reqId, status) {
+function updateVolunteerCardUI(reqId, status, volName, volPhone, volEmail) {
+    const volCard = document.getElementById(`volunteer-card-${reqId}`);
+    if (!volCard) return;
+
+    if (volName && !['Pending', 'Rejected', 'Cancelled'].includes(status)) {
+        volCard.className = 'p-3 mb-3 rounded-3 border bg-success-subtle border-success-subtle shadow-sm';
+        const cleanPhone = volPhone ? volPhone.replace(/[\s\+\-]/g, '') : '';
+        const phoneHtml = volPhone ? `
+            <div class="small text-muted mt-1">
+                <i class="bi bi-telephone-fill text-success me-1"></i>
+                <a href="tel:${volPhone}" class="fw-bold text-decoration-none text-primary">${volPhone}</a>
+            </div>` : '';
+        const emailHtml = volEmail ? `
+            <div class="small text-muted">
+                <i class="bi bi-envelope-fill text-secondary me-1"></i>${volEmail}
+            </div>` : '';
+        const actionHtml = volPhone ? `
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="tel:${volPhone}" class="btn btn-sm btn-success fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-telephone-fill"></i> Call Volunteer
+                </a>
+                <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn btn-sm btn-outline-success fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-whatsapp"></i> WhatsApp Chat
+                </a>
+            </div>` : '';
+
+        volCard.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-success-emphasis">
+                    <i class="bi bi-person-badge-fill me-1"></i> Assigned Volunteer Contact
+                </span>
+                <span class="badge bg-success text-white">Active Assignment</span>
+            </div>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0">${volName}</h5>
+                    ${phoneHtml}
+                    ${emailHtml}
+                </div>
+                ${actionHtml}
+            </div>
+        `;
+    } else {
+        volCard.className = 'p-3 mb-3 rounded-3 border bg-light border-light-subtle';
+        volCard.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-muted">
+                    <i class="bi bi-person-badge-fill me-1"></i> Assigned Volunteer Contact
+                </span>
+                <span class="badge bg-secondary-subtle text-muted">Awaiting Volunteer</span>
+            </div>
+            <div class="small text-muted d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle text-secondary"></i>
+                <span>A volunteer will be assigned shortly. Contact details will appear here once accepted.</span>
+            </div>
+        `;
+    }
+}
+
+function applyLiveStatusUI(reqId, status, volName, volPhone, volEmail) {
     const card = document.getElementById(`track-card-${reqId}`);
     if (!card) return;
 
@@ -218,6 +328,10 @@ function applyLiveStatusUI(reqId, status) {
         if (!stepEl) return;
         stepEl.className = `p-2 px-3 rounded-3 border d-flex align-items-center gap-2 transition-step ${isCompleted ? activeStepClass : inactiveStepClass}`;
         stepEl.innerHTML = `<span>${isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-circle"></i>'}</span><span>${label}</span>`;
+    }
+
+    if (volName !== undefined) {
+        updateVolunteerCardUI(reqId, status, volName, volPhone, volEmail);
     }
 
     if (status === 'Delivered') {
@@ -302,7 +416,7 @@ function pollLiveStatus() {
                 if (card) {
                     const currentStatus = card.getAttribute('data-current-status');
                     if (currentStatus !== r.status) {
-                        applyLiveStatusUI(r.id, r.status);
+                        applyLiveStatusUI(r.id, r.status, r.volunteer_name, r.volunteer_phone, r.volunteer_email);
                     }
                 }
             });

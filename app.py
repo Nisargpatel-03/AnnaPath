@@ -173,6 +173,13 @@ def init_db_schema():
                 cur.execute("ALTER TABLE requests ADD COLUMN user_email TEXT")
             if "volunteer_name" not in req_cols:
                 cur.execute("ALTER TABLE requests ADD COLUMN volunteer_name TEXT")
+            if "volunteer_phone" not in req_cols:
+                cur.execute("ALTER TABLE requests ADD COLUMN volunteer_phone TEXT")
+            if "volunteer_email" not in req_cols:
+                cur.execute("ALTER TABLE requests ADD COLUMN volunteer_email TEXT")
+            if "created_at" not in req_cols:
+                cur.execute("ALTER TABLE requests ADD COLUMN created_at TIMESTAMP")
+                cur.execute("UPDATE requests SET created_at = datetime('now', 'localtime') WHERE created_at IS NULL")
 
         # Backfill user_email for existing requests from users table
         try:
@@ -184,6 +191,20 @@ def init_db_schema():
                     ORDER BY CASE WHEN users.role = 'Receiver' THEN 0 ELSE 1 END, users.id DESC LIMIT 1
                 )
                 WHERE user_email IS NULL OR user_email = ''
+            """)
+            cur.execute("""
+                UPDATE requests
+                SET volunteer_phone = (
+                    SELECT phone FROM users 
+                    WHERE LOWER(users.name) = LOWER(requests.volunteer_name) AND users.role = 'Volunteer'
+                    LIMIT 1
+                ),
+                volunteer_email = (
+                    SELECT email FROM users 
+                    WHERE LOWER(users.name) = LOWER(requests.volunteer_name) AND users.role = 'Volunteer'
+                    LIMIT 1
+                )
+                WHERE volunteer_name IS NOT NULL AND volunteer_name != '' AND (volunteer_phone IS NULL OR volunteer_phone = '')
             """)
         except Exception:
             pass
@@ -567,8 +588,8 @@ def notify_donor_on_pickup_action(food, action, vol_name=None, conn=None):
     notify_user(donor_email, subject, text_body, html_email)
 
 
-def notify_requester_on_status_change(req, new_status, vol_name=None, conn=None):
-    """Send beautiful email notification to the person who requested the food."""
+def notify_requester_on_status_change(req, new_status, vol_name=None, conn=None, vol_phone=None, vol_email=None):
+    """Send beautiful email notification to the person who requested the food, including volunteer contact details."""
     if not req:
         return
 
@@ -584,6 +605,36 @@ def notify_requester_on_status_change(req, new_status, vol_name=None, conn=None)
     vol_display = vol_name or "A dedicated AnnaPath volunteer"
     req_code = f"#REQ-{1000 + req['id']}"
 
+    if not vol_phone and req and "volunteer_phone" in req.keys() and req["volunteer_phone"]:
+        vol_phone = req["volunteer_phone"]
+    if not vol_email and req and "volunteer_email" in req.keys() and req["volunteer_email"]:
+        vol_email = req["volunteer_email"]
+
+    contact_card_html = ""
+    if vol_phone:
+        clean_phone_digits = re.sub(r"[^\d]", "", vol_phone)
+        contact_card_html = f"""
+        <div style="background: #E8F5E9; border: 2px solid #4CAF50; padding: 16px 20px; border-radius: 10px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0; color: #1B5E20; font-size: 15px; font-weight: bold;">
+                📞 Assigned Volunteer Direct Contact Details:
+            </p>
+            <p style="margin: 4px 0; font-size: 14px;"><b>Volunteer Name:</b> {vol_display}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><b>Phone Number:</b> <a href="tel:{vol_phone}" style="color: #1976D2; font-weight: bold; text-decoration: none;">{vol_phone}</a></p>
+            {f'<p style="margin: 4px 0; font-size: 14px;"><b>Email:</b> <a href="mailto:{vol_email}" style="color: #1976D2; text-decoration: none;">{vol_email}</a></p>' if vol_email else ''}
+            <div style="margin-top: 12px;">
+                <a href="tel:{vol_phone}" style="background: #2E7D32; color: #ffffff; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-block; margin-right: 10px;">
+                    📞 Call Volunteer
+                </a>
+                <a href="https://wa.me/{clean_phone_digits}" target="_blank" style="background: #25D366; color: #ffffff; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-block;">
+                    💬 WhatsApp Message
+                </a>
+            </div>
+            <p style="margin: 10px 0 0 0; color: #555; font-size: 12px;">
+                You can contact your volunteer directly to check their current location or coordinate delivery directions.
+            </p>
+        </div>
+        """
+
     if new_status == "Accepted":
         subject = f"AnnaPath: Volunteer Accepted Your Food Request ({req_code})"
         heading = "Great News! Your Food Request Has Been Accepted"
@@ -597,9 +648,11 @@ def notify_requester_on_status_change(req, new_status, vol_name=None, conn=None)
             <p style="margin: 5px 0;"><b>Assigned Volunteer:</b> {vol_display}</p>
             <p style="margin: 5px 0;"><b>Status:</b> <span style="color: #0288D1; font-weight: bold;">Volunteer Accepted</span></p>
         </div>
+        {contact_card_html}
         <p>You will receive another update as soon as the volunteer picks up the food and is en route to your address.</p>
         """
-        text_body = f"Hello {requester_name}, volunteer {vol_display} has accepted your food request for {food_name} ({qty_str}) for delivery to {address}."
+        vol_phone_text = f" (Phone: {vol_phone})" if vol_phone else ""
+        text_body = f"Hello {requester_name}, volunteer {vol_display}{vol_phone_text} has accepted your food request for {food_name} ({qty_str}) for delivery to {address}."
 
     elif new_status in ["Food Picked Up", "Picked Up"]:
         subject = f"AnnaPath: Your Food is On the Way! ({req_code})"
@@ -614,9 +667,11 @@ def notify_requester_on_status_change(req, new_status, vol_name=None, conn=None)
             <p style="margin: 5px 0;"><b>Delivering Volunteer:</b> {vol_display}</p>
             <p style="margin: 5px 0;"><b>Status:</b> <span style="color: #1976D2; font-weight: bold;">On Delivery Route</span></p>
         </div>
+        {contact_card_html}
         <p>Please make sure someone is available at the address or reachable by phone to receive your meal safely.</p>
         """
-        text_body = f"Hello {requester_name}, volunteer {vol_display} has picked up your food ({food_name}) and is on the way to {address}."
+        vol_phone_text = f" (Phone: {vol_phone})" if vol_phone else ""
+        text_body = f"Hello {requester_name}, volunteer {vol_display}{vol_phone_text} has picked up your food ({food_name}) and is on the way to {address}."
 
     elif new_status == "Delivered":
         subject = f"AnnaPath: Food Delivery Completed ({req_code})"
@@ -1518,7 +1573,7 @@ def donor_portal():
     available_count = sum(
         1
         for f in foods
-        if f["status"] in ("Available", "Complete Pickup")
+        if f["status"] in ("Available", "Complete Pickup", "Pending Pickup")
         and (f["available_quantity"] or 0) > 0
     )
     total_donations = len(foods)
@@ -1675,9 +1730,9 @@ def add_food():
 @role_required("Receiver")
 def receiver_portal():
     conn = get_db()
-    # Available live inventory items
+    # Available live inventory items (both verified in-stock and freshly donated)
     foods = conn.execute(
-        "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available') AND available_quantity > 0 ORDER BY id DESC"
+        "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available', 'Pending Pickup') AND available_quantity > 0 ORDER BY id DESC"
     ).fetchall()
     requests = conn.execute(
         "SELECT * FROM requests ORDER BY id DESC").fetchall()
@@ -1720,6 +1775,7 @@ def request_food():
                     food = conn.execute(
                         """SELECT * FROM food
                            WHERE (LOWER(food_name) = LOWER(?) OR LOWER(food_name) = LOWER(?) OR LOWER(food_name) LIKE '%' || LOWER(?) || '%')
+                             AND status IN ('Complete Pickup', 'Available', 'Pending Pickup')
                              AND available_quantity > 0
                            ORDER BY CASE WHEN status IN ('Complete Pickup', 'Available') THEN 0 ELSE 1 END, id DESC LIMIT 1""",
                         (food_item_name, clean_name, clean_name),
@@ -1780,8 +1836,8 @@ def request_food():
 
             requester_email = session.get("email", "").strip()
             conn.execute(
-                """INSERT INTO requests (food_id, food_code, user_name, name, phone, food_name, quantity, address, status, latitude, longitude, user_email)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)""",
+                """INSERT INTO requests (food_id, food_code, user_name, name, phone, food_name, quantity, address, status, latitude, longitude, user_email, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, datetime('now', 'localtime'))""",
                 (food_item_id,
                  req_food_code,
                  name,
@@ -1823,7 +1879,7 @@ def request_food():
             ).fetchone()
 
         available_foods = conn.execute(
-            "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available') AND available_quantity > 0 ORDER BY id DESC"
+            "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available', 'Pending Pickup') AND available_quantity > 0 ORDER BY id DESC"
         ).fetchall()
         return render_template(
             "request_food.html",
@@ -2535,19 +2591,43 @@ def update_request(req_id, new_status):
         return redirect(request.referrer or url_for("volunteer"))
 
     vol_name = session.get("user_name", "Volunteer")
+    vol_phone = session.get("phone", "")
+    vol_email = session.get("email", "")
+
+    # Look up phone and email if not in active session
+    if not vol_phone or not vol_email:
+        try:
+            u = conn.execute(
+                "SELECT email, phone FROM users WHERE id = ? OR LOWER(email) = LOWER(?)",
+                (session.get("user_id"), session.get("email", "")),
+            ).fetchone()
+            if u:
+                vol_phone = vol_phone or u["phone"] or ""
+                vol_email = vol_email or u["email"] or ""
+            if not vol_phone or not vol_email:
+                v = conn.execute(
+                    "SELECT email, phone FROM volunteers WHERE LOWER(name) = LOWER(?) OR LOWER(email) = LOWER(?)",
+                    (vol_name, vol_email),
+                ).fetchone()
+                if v:
+                    vol_phone = vol_phone or v["phone"] or ""
+                    vol_email = vol_email or v["email"] or ""
+        except Exception:
+            pass
+
     if status_clean in ["Accepted", "Food Picked Up"]:
         conn.execute(
-            "UPDATE requests SET status = ?, volunteer_name = ? WHERE id = ?",
-            (status_clean, vol_name, req_id),
+            "UPDATE requests SET status = ?, volunteer_name = ?, volunteer_phone = ?, volunteer_email = ? WHERE id = ?",
+            (status_clean, vol_name, vol_phone, vol_email, req_id),
         )
     elif status_clean == "Delivered":
         conn.execute(
-            "UPDATE requests SET status = ?, volunteer_name = COALESCE(volunteer_name, ?) WHERE id = ?",
-            (status_clean, vol_name, req_id),
+            "UPDATE requests SET status = ?, volunteer_name = COALESCE(volunteer_name, ?), volunteer_phone = COALESCE(volunteer_phone, ?), volunteer_email = COALESCE(volunteer_email, ?) WHERE id = ?",
+            (status_clean, vol_name, vol_phone, vol_email, req_id),
         )
     elif status_clean in ["Pending", "Cancelled", "Rejected"]:
         conn.execute(
-            "UPDATE requests SET status = ?, volunteer_name = NULL WHERE id = ?",
+            "UPDATE requests SET status = ?, volunteer_name = NULL, volunteer_phone = NULL, volunteer_email = NULL WHERE id = ?",
             (status_clean, req_id),
         )
     else:
@@ -2557,8 +2637,18 @@ def update_request(req_id, new_status):
         )
     conn.commit()
 
-    # Notify Requester via email
-    notify_requester_on_status_change(req, status_clean, vol_name, conn)
+    # Re-fetch updated request record
+    updated_req = conn.execute("SELECT * FROM requests WHERE id = ?", (req_id,)).fetchone()
+
+    # Notify Requester via email & live in-app notification
+    notify_requester_on_status_change(
+        updated_req or req,
+        status_clean,
+        vol_name,
+        conn,
+        vol_phone=vol_phone,
+        vol_email=vol_email,
+    )
 
     conn.close()
 
@@ -2587,7 +2677,7 @@ def update_request(req_id, new_status):
 def api_tracking_status():
     conn = get_db()
     requests = conn.execute(
-        "SELECT id, status, food_name, quantity, address, name FROM requests ORDER BY id DESC"
+        "SELECT id, status, food_name, quantity, address, name, volunteer_name, volunteer_phone, volunteer_email, created_at FROM requests ORDER BY id DESC"
     ).fetchall()
     conn.close()
     return {"requests": [dict(r) for r in requests]}
@@ -2726,7 +2816,7 @@ def food_list():
     conn = get_db()
     # Live stock: all items in inventory
     foods = conn.execute(
-        "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available') AND available_quantity > 0 ORDER BY id DESC"
+        "SELECT * FROM food WHERE status IN ('Complete Pickup', 'Available', 'Pending Pickup') AND available_quantity > 0 ORDER BY id DESC"
     ).fetchall()
     conn.close()
     return render_template("food_list.html", foods=foods)

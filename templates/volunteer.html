@@ -256,7 +256,7 @@
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="ps-4">Request ID</th>
+                                        <th class="ps-4">Request ID & Time</th>
                                         <th>Requester Name & Phone</th>
                                         <th>Food Item & Quantity</th>
                                         <th>Delivery Address</th>
@@ -269,9 +269,16 @@
                                         {% for req in requests %}
                                         <tr>
                                             <td class="ps-4">
-                                                <span class="badge bg-dark fw-bold">#REQ-{{ 1000 + req['id'] }}</span>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="badge bg-dark fw-bold">#REQ-{{ 1000 + req['id'] }}</span>
+                                                </div>
                                                 {% if req['food_code'] %}
-                                                    <div><small class="text-muted">Food: {{ req['food_code'] }}</small></div>
+                                                    <div><small class="text-primary fw-semibold"><i class="bi bi-tag-fill me-1"></i>{{ req['food_code'] }}</small></div>
+                                                {% endif %}
+                                                {% if req['created_at'] %}
+                                                    <div class="mt-1 small text-muted" style="font-size: 0.8rem;">
+                                                        <i class="bi bi-clock-history text-secondary me-1"></i>{{ req['created_at'] }}
+                                                    </div>
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -340,6 +347,9 @@
                                                 {% endif %}
                                                 {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}
                                                     <div class="small text-muted mt-1">Volunteer: <b>{{ req['volunteer_name'] }}</b></div>
+                                                    {% if req['volunteer_phone'] %}
+                                                        <div class="small text-muted"><i class="bi bi-telephone text-secondary me-1"></i><a href="tel:{{ req['volunteer_phone'] }}" class="text-decoration-none text-muted">{{ req['volunteer_phone'] }}</a></div>
+                                                    {% endif %}
                                                 {% endif %}
                                             </td>
                                             <td class="text-end pe-4">

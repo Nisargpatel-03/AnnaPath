@@ -51,7 +51,12 @@ CREATE TABLE IF NOT EXISTS requests (
     address TEXT,
     food_code TEXT,
     latitude REAL,
-    longitude REAL
+    longitude REAL,
+    user_email TEXT,
+    volunteer_name TEXT,
+    volunteer_phone TEXT,
+    volunteer_email TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)
 

@@ -80,10 +80,12 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th class="ps-4">Requester</th>
+                            <th class="ps-4">Request ID & Time</th>
+                            <th>Requester</th>
                             <th>Food Requested</th>
                             <th>Quantity</th>
                             <th>Delivery Address</th>
+                            <th>Assigned Volunteer & Contact</th>
                             <th>Status</th>
                             <th>Action</th>
                         </tr>
@@ -92,28 +94,61 @@
                         {% if requests %}
                             {% for req in requests %}
                             <tr>
-                                <td class="ps-4"><b>{{ req['name'] or req['user_name'] }}</b></td>
+                                <td class="ps-4">
+                                    <span class="badge bg-dark fw-bold">#REQ-{{ 1000 + req['id'] }}</span>
+                                    {% if req['created_at'] %}
+                                        <div class="text-muted small mt-1" style="font-size: 0.8rem;">
+                                            <i class="bi bi-clock-history me-1"></i>{{ req['created_at'] }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td><b>{{ req['name'] or req['user_name'] }}</b></td>
                                 <td>
-                                    <b>{{ req['food_name'] or req['user_name'] }}</b>
+                                    <b class="text-dark">{{ req['food_name'] or req['user_name'] }}</b>
                                     {% if req['food_code'] %}
                                         <div><span class="badge bg-dark">#{{ req['food_code'] }}</span></div>
                                     {% endif %}
                                 </td>
                                 <td><span class="badge bg-secondary">{{ req['quantity'] or '1' }}</span></td>
-                                <td>{{ req['address'] or 'N/A' }}</td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 200px;" title="{{ req['address'] }}">
+                                        {{ req['address'] or 'N/A' }}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if req['volunteer_name'] and req['status'] not in ['Pending', 'Rejected', 'Cancelled'] %}
+                                        <div class="fw-bold text-dark d-flex align-items-center gap-1">
+                                            <i class="bi bi-person-fill text-primary"></i> {{ req['volunteer_name'] }}
+                                        </div>
+                                        {% if req['volunteer_phone'] %}
+                                            <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+                                                <a href="tel:{{ req['volunteer_phone'] }}" class="btn btn-sm btn-outline-primary py-0 px-2 fw-bold text-decoration-none shadow-sm" title="Call volunteer directly">
+                                                    <i class="bi bi-telephone-fill me-1"></i>{{ req['volunteer_phone'] }}
+                                                </a>
+                                                <a href="https://wa.me/{{ req['volunteer_phone']|replace(' ', '')|replace('+', '')|replace('-', '') }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fw-semibold text-decoration-none shadow-sm" title="WhatsApp Chat">
+                                                    <i class="bi bi-whatsapp"></i> Chat
+                                                </a>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-info-subtle text-info-emphasis">Assigned</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small"><i class="bi bi-clock-history me-1"></i>Awaiting Volunteer</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge {% if req['status'] == 'Delivered' %}bg-success{% elif req['status'] == 'Pending' %}bg-warning text-dark{% else %}bg-primary{% endif %}">
                                         {{ req['status'] }}
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="/tracking" class="btn btn-sm btn-outline-primary">Track Progress</a>
+                                    <a href="/tracking" class="btn btn-sm btn-outline-primary fw-semibold">Track Progress &rarr;</a>
                                 </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="8" class="text-center py-5 text-muted">
                                     No food requests placed yet. Browse the available food above and click <b>Request This Food</b>!
                                 </td>
                             </tr>
