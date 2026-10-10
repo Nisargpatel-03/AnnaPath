@@ -802,31 +802,22 @@ def switch_role(role):
 # --- Authentication Routes ---
 
 
-@app.route("/api/send_otp", methods=["POST"])
-def api_send_otp():
-    name = request.form.get("name", "").strip()
-    email = request.form.get("email", "").strip()
-    phone = request.form.get("phone", "").strip()
-    password = request.form.get("password", "").strip()
-    role = request.form.get("role", "Donor").strip()
+def send_registration_otp(name, email, phone, password, role):
+    """Generate 6-digit OTP, store in pending_registrations, and send verification email."""
+    name = (name or "").strip()
+    email = (email or "").strip().lower()
+    phone = (phone or "").strip()
+    password = (password or "").strip()
+    role = (role or "Donor").strip()
+
+    if not email or not name or not password:
+        return False, "Please fill in all required fields."
 
     if role == "Admin":
-        return {
-            "success": False,
-            "message": "Admin accounts cannot be registered here.",
-        }
+        return False, "Admin accounts cannot be registered here."
 
     conn = get_db()
     try:
-        existing_user = conn.execute(
-            "SELECT role FROM users WHERE email = ?", (email,)
-        ).fetchone()
-        if existing_user:
-            return {
-                "success": False,
-                "message": "This email is already registered. Please sign in.",
-            }
-
         otp = str(secrets.randbelow(900000) + 100000)
 
         conn.execute(
@@ -838,17 +829,23 @@ def api_send_otp():
         )
         conn.commit()
 
-        subject = "AnnaPath: Verify Your Registration"
+        subject = "AnnaPath: Verify Your Registration OTP"
         html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #4CAF50; border-radius: 10px;">
-            <h2 style="color: #2E7D32; margin-top: 0;">AnnaPath Food Sharing Network</h2>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 2px solid #2E7D32; border-radius: 12px; background: #ffffff;">
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #E8F5E9; padding-bottom: 15px;">
+                <h1 style="color: #2E7D32; margin: 0; font-size: 26px;">AnnaPath</h1>
+                <p style="color: #666; font-size: 13px; margin: 4px 0 0 0;">Food Sharing Network & Hunger Relief</p>
+            </div>
+            <h2 style="color: #1B5E20; margin-top: 0; font-size: 20px;">Email Verification Code</h2>
             <p>Dear <b>{name}</b>,</p>
-            <p>Your One-Time Password (OTP) for completing your {role} registration is:</p>
-            <div style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #1B5E20; text-align: center; margin: 20px 0; background: #E8F5E9; padding: 15px; border-radius: 8px;">
+            <p>Thank you for signing up as a <b>{role}</b> with AnnaPath. Please enter the One-Time Password (OTP) below to verify your email and complete your registration:</p>
+            <div style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #1B5E20; text-align: center; margin: 25px 0; background: #E8F5E9; padding: 16px; border-radius: 8px; border: 1px dashed #2E7D32;">
                 {otp}
             </div>
-            <p>If you did not request this, please ignore this email.</p>
-            <p>Best regards,<br><b>The AnnaPath Team</b></p>
+            <p style="color: #555; font-size: 14px;">This code is valid for <b>10 minutes</b>. If you did not make this request, you can safely ignore this email.</p>
+            <p style="color: #888; font-size: 12px; border-top: 1px solid #eee; padding-top: 15px; margin-top: 25px;">
+                Warm regards,<br><b>The AnnaPath Team</b>
+            </p>
         </div>
         """
 
@@ -863,14 +860,26 @@ def api_send_otp():
                 email,
                 subject,
                 html,
-                f"Your OTP is: {otp}"),
+                f"Your AnnaPath registration OTP is: {otp}"),
         ).start()
 
-        return {"success": True, "message": f"OTP sent to {email}"}
+        return True, f"OTP sent to {email}"
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return False, str(e)
     finally:
         conn.close()
+
+
+@app.route("/api/send_otp", methods=["POST"])
+def api_send_otp():
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    phone = request.form.get("phone", "").strip()
+    password = request.form.get("password", "").strip()
+    role = request.form.get("role", "Donor").strip()
+
+    success, message = send_registration_otp(name, email, phone, password, role)
+    return {"success": success, "message": message}
 
 
 @app.route("/api/forgot_password/firebase_send_reset", methods=["POST"])
@@ -1079,7 +1088,6 @@ def api_forgot_password_verify_and_reset():
     finally:
         conn.close()
 
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     selected_role = request.args.get("role", "Donor")
@@ -1091,135 +1099,295 @@ def register():
         return redirect(url_for("login", role="Admin"))
 
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        entered_otp = request.form.get("otp", "").strip()
+        email = request.form.get("email", "").strip().lower()
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         password = request.form.get("password", "").strip()
         role = request.form.get("role", selected_role).strip()
 
+        if role == "Admin":
+            flash("Admin accounts cannot be registered here.", "warning")
+            return redirect(url_for("register", role="Donor"))
+
+        if not email or not password or not name:
+            flash("Please fill in all required fields.", "warning")
+            return redirect(url_for("register", role=role))
+
+        success, msg = send_registration_otp(name, email, phone, password, role)
+        if not success:
+            flash(msg, "danger")
+            return redirect(url_for("register", role=role))
+
+        session["pending_otp_email"] = email
+        session["pending_otp_role"] = role
+
+        flash(
+            f"Verification OTP has been sent to {email}. Please enter the 6-digit code below to complete your registration.",
+            "info",
+        )
+        return redirect(url_for("verify_otp", email=email, role=role))
+
+    return render_template("register.html", selected_role=selected_role)
+
+
+@app.route("/verify_otp", methods=["GET", "POST"])
+def verify_otp():
+    if request.method == "POST":
+        email = (request.form.get("email", "") or session.get("pending_otp_email", "")).strip().lower()
+        entered_otp = request.form.get("otp", "").strip().replace(" ", "").replace("-", "")
+
+        if not email:
+            flash("Session expired or email missing. Please register again.", "warning")
+            return redirect(url_for("register"))
+
+        if not entered_otp:
+            flash("Please enter the 6-digit verification code.", "warning")
+            return redirect(url_for("verify_otp", email=email))
+
         conn = get_db()
         try:
-            if entered_otp:
-                pending = conn.execute(
-                    "SELECT * FROM pending_registrations WHERE email = ?", (email,)
-                ).fetchone()
-                if not pending:
-                    flash(
-                        "No pending registration found for this email.",
-                        "warning",
-                    )
-                    return redirect(url_for("register", role=selected_role))
-
-                if entered_otp != pending["otp"]:
-                    flash("Invalid OTP. Please try again.", "danger")
-                    return redirect(url_for("register", role=selected_role))
-
-                name = pending["name"]
-                phone = pending["phone"]
-                password = pending["password"]
-                role = pending["role"]
-            else:
-                if not email or not password or not name:
-                    flash("Please fill in all required fields.", "warning")
-                    return redirect(url_for("register", role=selected_role))
-
-            existing_user = conn.execute(
-                "SELECT id FROM users WHERE email = ?", (email,)
+            pending = conn.execute(
+                "SELECT * FROM pending_registrations WHERE LOWER(email) = LOWER(?)", (email,)
             ).fetchone()
-            if existing_user:
-                flash("An account with this email already exists. Please sign in.", "warning")
-                conn.close()
-                return redirect(url_for("login", role=role))
 
+            if not pending:
+                flash("No pending registration found for this email. Please register again.", "warning")
+                return redirect(url_for("register"))
+
+            # Check expiration (10 min)
             try:
+                expires_at = datetime.strptime(pending["expires_at"], "%Y-%m-%d %H:%M:%S")
+                if expires_at < datetime.utcnow():
+                    flash("Verification code has expired. Please click 'Resend Code'.", "danger")
+                    return redirect(url_for("verify_otp", email=email))
+            except Exception:
+                pass
+
+            if entered_otp != str(pending["otp"]).strip():
+                flash("Invalid OTP code. Please check your email and try again.", "danger")
+                return redirect(url_for("verify_otp", email=email))
+
+            # Valid OTP! Extract details
+            name = pending["name"]
+            phone = pending["phone"]
+            password = pending["password"]
+            role = pending["role"]
+
+            # Check if an account already exists for this email and role
+            existing = conn.execute(
+                "SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND role = ?",
+                (email, role),
+            ).fetchone()
+
+            if existing:
+                conn.execute(
+                    "UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ?",
+                    (name, phone, password, existing["id"]),
+                )
+            else:
                 conn.execute(
                     "INSERT INTO users (name, email, phone, password, role) VALUES (?, ?, ?, ?, ?)",
                     (name, email, phone, password, role),
                 )
 
-                # Push to Firebase Firestore Table (Choice B)
+            # 2. Push to Firebase Firestore Table
+            try:
+                collection_name = role.lower() + "s"
+                db.collection("users").document("roles").collection(
+                    collection_name
+                ).document(email).set(
+                    {
+                        "name": name,
+                        "email": email,
+                        "phone": phone,
+                        "role": role,
+                        "created_at": firestore.SERVER_TIMESTAMP,
+                    }
+                )
+            except Exception as e:
+                print("Firebase Firestore Sync Error:", e)
+
+            # 3. Create or update user in Firebase Authentication
+            try:
+                auth.create_user(
+                    email=email,
+                    password=password,
+                    display_name=name,
+                )
+            except auth.EmailAlreadyExistsError:
                 try:
-                    collection_name = (
-                        role.lower() + "s"
-                    )  # e.g., 'donors', 'receivers', 'volunteers'
-                    db.collection("users").document("roles").collection(
-                        collection_name
-                    ).document(email).set(
-                        {
-                            "name": name,
-                            "email": email,
-                            "phone": phone,
-                            "role": role,
-                            "created_at": firestore.SERVER_TIMESTAMP,
-                        }
-                    )
-                except Exception as e:
-                    print("Firebase Firestore Sync Error:", e)
+                    existing_fb_user = auth.get_user_by_email(email)
+                    auth.update_user(existing_fb_user.uid, password=password, display_name=name)
+                except Exception:
+                    pass
+            except Exception as e:
+                print("Firebase Auth Sync Note:", e)
 
-                if role == "Volunteer":
-                    existing_vol = conn.execute(
-                        "SELECT id FROM volunteers WHERE email = ? OR (phone = ? AND phone != '')",
-                        (email, phone),
-                    ).fetchone()
-                    if existing_vol:
-                        conn.execute(
-                            "UPDATE volunteers SET name = ?, phone = ?, password = ? WHERE id = ?",
-                            (name, phone, password, existing_vol["id"]),
-                        )
-                    else:
-                        conn.execute(
-                            """INSERT INTO volunteers (name, email, phone, area, time, password, status)
-                               VALUES (?, ?, ?, 'All Areas', 'Flexible', ?, 'Pending Approval')""",
-                            (name, email, phone, password),
-                        )
-
-                conn.execute(
-                    "DELETE FROM pending_registrations WHERE email = ?", (email,))
-                conn.commit()
-
-                # Auto-login after registration
-                user = conn.execute(
-                    "SELECT * FROM users WHERE email = ?", (email,)
+            # 4. Handle Volunteer specific table
+            if role == "Volunteer":
+                existing_vol = conn.execute(
+                    "SELECT id FROM volunteers WHERE LOWER(email) = LOWER(?) OR (phone = ? AND phone != '')",
+                    (email, phone),
                 ).fetchone()
-                if user:
-                    session.clear()
-                    session.permanent = True
-                    session["user_id"] = user["id"]
-                    session["user_name"] = user["name"] or "User"
-                    session["role"] = user["role"]
-                    session["email"] = user["email"]
-                    session["phone"] = (
-                        user["phone"]
-                        if ("phone" in user.keys() and user["phone"])
-                        else ""
+                if existing_vol:
+                    conn.execute(
+                        "UPDATE volunteers SET name = ?, phone = ?, password = ? WHERE id = ?",
+                        (name, phone, password, existing_vol["id"]),
+                    )
+                else:
+                    conn.execute(
+                        """INSERT INTO volunteers (name, email, phone, area, time, password, status)
+                           VALUES (?, ?, ?, 'All Areas', 'Flexible', ?, 'Pending Approval')""",
+                        (name, email, phone, password),
                     )
 
-                flash(
-                    f"Account created successfully as {role}! Welcome, {name}.",
-                    "success",
+            # 5. Clean up pending registration
+            conn.execute("DELETE FROM pending_registrations WHERE LOWER(email) = LOWER(?)", (email,))
+            conn.commit()
+
+            # 6. Auto-login after registration
+            user = conn.execute(
+                "SELECT * FROM users WHERE LOWER(email) = LOWER(?)", (email,)
+            ).fetchone()
+            if user:
+                session.clear()
+                session.permanent = True
+                session["user_id"] = user["id"]
+                session["user_name"] = user["name"] or "User"
+                session["role"] = user["role"]
+                session["email"] = user["email"]
+                session["phone"] = (
+                    user["phone"]
+                    if ("phone" in user.keys() and user["phone"])
+                    else ""
                 )
 
-                if role == "Donor":
-                    return redirect(url_for("donor_portal"))
-                elif role == "Receiver":
-                    return redirect(url_for("receiver_portal"))
-                elif role == "Volunteer":
-                    return redirect(url_for("volunteer"))
-                elif role == "Admin":
-                    return redirect(url_for("admin"))
-                return redirect(url_for("home"))
+            session.pop("pending_otp_email", None)
+            session.pop("pending_otp_role", None)
 
-            except sqlite3.IntegrityError:
-                flash(
-                    "This email is already registered. Please sign in with your existing account.",
-                    "danger",
-                )
-                return redirect(url_for("login", role=role))
+            flash(
+                f"Email verified successfully! Welcome to AnnaPath, {name} ({role}).",
+                "success",
+            )
+
+            if role == "Donor":
+                return redirect(url_for("donor_portal"))
+            elif role == "Receiver":
+                return redirect(url_for("receiver_portal"))
+            elif role == "Volunteer":
+                return redirect(url_for("volunteer"))
+            elif role == "Admin":
+                return redirect(url_for("admin"))
+            return redirect(url_for("home"))
+
         finally:
             conn.close()
 
-    return render_template("register.html", selected_role=selected_role)
+    # GET request
+    email = (request.args.get("email", "") or session.get("pending_otp_email", "")).strip().lower()
+    role = (request.args.get("role", "") or session.get("pending_otp_role", "Donor")).strip()
+
+    if not email:
+        flash("Please fill in the registration form first.", "warning")
+        return redirect(url_for("register", role=role))
+
+    conn = get_db()
+    try:
+        pending = conn.execute(
+            "SELECT * FROM pending_registrations WHERE LOWER(email) = LOWER(?)", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not pending:
+        flash("No pending registration found for this email. Please register again.", "warning")
+        return redirect(url_for("register", role=role))
+
+    return render_template("verify_otp.html", email=email, role=pending["role"])
+
+
+@app.route("/resend_otp", methods=["GET", "POST"])
+def resend_otp():
+    email = (
+        request.form.get("email", "")
+        or request.args.get("email", "")
+        or session.get("pending_otp_email", "")
+    ).strip().lower()
+
+    if not email:
+        if request.is_json:
+            return {"success": False, "message": "Email is required."}
+        flash("Email is required to resend OTP.", "warning")
+        return redirect(url_for("register"))
+
+    conn = get_db()
+    try:
+        pending = conn.execute(
+            "SELECT * FROM pending_registrations WHERE LOWER(email) = LOWER(?)", (email,)
+        ).fetchone()
+        if not pending:
+            if request.is_json:
+                return {"success": False, "message": "No pending registration found. Please register again."}
+            flash("No pending registration found for this email. Please register again.", "warning")
+            return redirect(url_for("register"))
+
+        new_otp = str(secrets.randbelow(900000) + 100000)
+        conn.execute(
+            """UPDATE pending_registrations 
+               SET otp = ?, expires_at = datetime('now', '+10 minutes') 
+               WHERE LOWER(email) = LOWER(?)""",
+            (new_otp, email),
+        )
+        conn.commit()
+
+        name = pending["name"]
+        role = pending["role"]
+
+        subject = "AnnaPath: Your New Registration OTP"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 2px solid #2E7D32; border-radius: 12px; background: #ffffff;">
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #E8F5E9; padding-bottom: 15px;">
+                <h1 style="color: #2E7D32; margin: 0; font-size: 26px;">AnnaPath</h1>
+                <p style="color: #666; font-size: 13px; margin: 4px 0 0 0;">Food Sharing Network & Hunger Relief</p>
+            </div>
+            <h2 style="color: #1B5E20; margin-top: 0; font-size: 20px;">New Email Verification Code</h2>
+            <p>Dear <b>{name}</b>,</p>
+            <p>Here is your new One-Time Password (OTP) to complete your <b>{role}</b> registration:</p>
+            <div style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #1B5E20; text-align: center; margin: 25px 0; background: #E8F5E9; padding: 16px; border-radius: 8px; border: 1px dashed #2E7D32;">
+                {new_otp}
+            </div>
+            <p style="color: #555; font-size: 14px;">This code is valid for <b>10 minutes</b>.</p>
+            <p style="color: #888; font-size: 12px; border-top: 1px solid #eee; padding-top: 15px; margin-top: 25px;">
+                Warm regards,<br><b>The AnnaPath Team</b>
+            </p>
+        </div>
+        """
+
+        def send_async_email(app_context, *args):
+            with app_context:
+                send_email_notification(*args)
+
+        threading.Thread(
+            target=send_async_email,
+            args=(
+                app.app_context(),
+                email,
+                subject,
+                html,
+                f"Your new AnnaPath registration OTP is: {new_otp}",
+            ),
+        ).start()
+
+        if request.is_json:
+            return {"success": True, "message": f"New OTP sent to {email}"}
+
+        flash(
+            f"A new OTP verification code has been sent to {email}. Please check your inbox and spam folder.",
+            "info",
+        )
+        return redirect(url_for("verify_otp", email=email, role=role))
+    finally:
+        conn.close()
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1670,90 +1838,37 @@ def request_food():
 
 
 @app.route("/volunteer", methods=["GET", "POST"])
-@role_required("Volunteer")
 def volunteer():
-    conn = get_db()
-    user_email = session.get("email", "")
-
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
-        email = request.form.get("email", "").strip()
-        area = request.form.get("area", "").strip()
-        time_slot = request.form.get("time", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "").strip() or "volunteer123"
 
-        # Check / Create user account in users table
-        user = conn.execute(
-            "SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-        if not user:
-            conn.execute(
-                "INSERT INTO users (name, email, phone, password, role) VALUES (?, ?, ?, ?, 'Volunteer')",
-                (name, email, phone, password),
-            )
-            conn.commit()
-            user = conn.execute(
-                "SELECT id FROM users WHERE email = ?", (email,)
-            ).fetchone()
+        if not email or not name:
+            flash("Please enter your name and email address.", "warning")
+            return redirect(url_for("register", role="Volunteer"))
 
-        # Check / Insert into volunteers table
-        existing_vol = conn.execute(
-            "SELECT id FROM volunteers WHERE email = ? OR (phone = ? AND phone != '')",
-            (email, phone),
-        ).fetchone()
+        success, msg = send_registration_otp(name, email, phone, password, "Volunteer")
+        if not success:
+            flash(msg, "danger")
+            return redirect(url_for("register", role="Volunteer"))
 
-        if existing_vol:
-            conn.execute(
-                "UPDATE volunteers SET name = ?, phone = ?, area = ?, time = ?, password = ?, status = 'Pending Approval' WHERE id = ?",
-                (name,
-                 phone,
-                 area,
-                 time_slot,
-                 password,
-                 existing_vol["id"]),
-            )
-        else:
-            conn.execute(
-                """INSERT INTO volunteers (name, email, phone, area, time, password, status)
-                   VALUES (?, ?, ?, ?, ?, ?, 'Pending Approval')""",
-                (name, email, phone, area, time_slot, password),
-            )
-        conn.commit()
-
-        # Log volunteer in to their new profile
-        session["user_id"] = user["id"] if user else 999
-        session["user_name"] = name
-        session["role"] = "Volunteer"
-        session["email"] = email
-        session["phone"] = phone
-
-        # Send application confirmation email
-        subject = "AnnaPath: Volunteer Registration Received (Under Admin Review)"
-        html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #4CAF50; border-radius: 10px;">
-            <h2 style="color: #2E7D32; margin-top: 0;">AnnaPath Food Sharing Network</h2>
-            <p>Dear <b>{name}</b>,</p>
-            <p>Thank you for offering your time to help fight hunger and reduce food waste!</p>
-            <p>Your volunteer application for <b>{area}</b> has been received and forwarded to our <b>Administrator</b> for verification.</p>
-            <div style="background: #FFF9C4; border-left: 4px solid #FBC02D; padding: 12px; margin: 15px 0;">
-                <b>Application Status:</b> Pending Admin Approval<br>
-                Once the administrator approves your request, you will receive an acceptance email and can begin claiming delivery orders!
-            </div>
-            <p>Best regards,<br><b>The AnnaPath Team</b></p>
-        </div>
-        """
-        send_email_notification(
-            email,
-            subject,
-            html,
-            f"Dear {name}, your volunteer application is under review.",
-        )
-
+        session["pending_otp_email"] = email
+        session["pending_otp_role"] = "Volunteer"
         flash(
-            "Volunteer application submitted! Your request is now pending Admin approval.",
-            "success",
+            f"Verification OTP has been sent to {email}. Please enter the 6-digit code below to complete your volunteer registration.",
+            "info",
         )
-        return redirect(url_for("volunteer"))
+        return redirect(url_for("verify_otp", email=email, role="Volunteer"))
+
+    # Require Volunteer or Admin session for viewing portal
+    if session.get("role") not in ["Volunteer", "Admin"]:
+        flash("Please sign in as Volunteer to access this portal.", "warning")
+        return redirect(url_for("login", role="Volunteer"))
+
+    conn = get_db()
+    user_email = session.get("email", "")
 
     # Fetch current user's volunteer profile if logged in
     my_vol = None

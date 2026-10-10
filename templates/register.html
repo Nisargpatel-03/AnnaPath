@@ -82,7 +82,7 @@
 
                     <div class="d-grid mt-4">
                         <button class="btn btn-success btn-lg fw-bold" type="submit" id="createAccountBtn">
-                            <span>Create Account</span>
+                            <span id="btnText">Verify Email & Continue</span>
                             <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
@@ -109,50 +109,16 @@
     </div>
 </div>
 
-<!-- Firebase Sync Magic -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyC5qZAO5HX2ddE0mKFzVtIAxEEmvJh-jR8",
-  authDomain: "annapath-03.firebaseapp.com",
-  projectId: "annapath-03",
-  storageBucket: "annapath-03.firebasestorage.app",
-  messagingSenderId: "849668905015",
-  appId: "1:849668905015:web:1527ad946bc7d65d7547b2",
-  measurementId: "G-QB89RJ6SVH"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-const form = document.getElementById('registerForm');
-form.addEventListener('submit', function(e) {
-    if (this.dataset.firebaseDone === "true") {
-        return; // Let the form submit normally to Python backend
-    }
-    e.preventDefault();
-    
-    const email = this.email.value;
-    const password = this.password.value;
-    
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
     const btn = document.getElementById('createAccountBtn');
-    if (btn) {
-        btn.innerHTML = '<span>Creating Account...</span> <div class="spinner-border spinner-border-sm ms-2" role="status"></div>';
-        btn.disabled = true;
-    }
-
-    // Secretly create user in Firebase so they show up in your dashboard
-    createUserWithEmailAndPassword(auth, email, password)
-        .then(() => {
-            form.dataset.firebaseDone = "true";
-            form.submit();
-        })
-        .catch(err => {
-            form.dataset.firebaseDone = "true";
-            form.submit();
+    if (form && btn) {
+        form.addEventListener('submit', function() {
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span><span>Sending Verification OTP...</span>';
+            btn.classList.add('disabled');
         });
+    }
 });
 </script>
 
